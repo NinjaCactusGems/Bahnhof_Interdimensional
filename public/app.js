@@ -150,7 +150,119 @@ function render() {
     return { el, row, set: clock(el), state: (now) => trackState(t, now) };
   });
   counters = [final, ...rows];
+  // pipes follow the clocks: redraw when anything resizes or fonts settle
+  pipeWatch.disconnect();
+  pipeWatch.observe(document.body);
+  counters.forEach((c) => pipeWatch.observe(c.el));
+  document.fonts.ready.then(queuePipes);
 }
+
+/* ---------- Pipes ----------
+   Laid out from the clocks' real positions: a trunk down each outer side
+   and one down the middle, a branch into every clock, a few runs leaving
+   the screen, with flanges, wall brackets and valve wheels. */
+
+const pipesSvg = $("#pipes");
+const PIPE = [["#120a04", 1], ["#4a2f17", 0.82], ["#7a5229", 0.52], ["#b88a52", 0.16]]; // edge -> highlight
+
+const pipe = (pts, w) => {
+  const d = "M" + pts.map((p) => p.join(" ")).join("L");
+  return PIPE.map(([c, k]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}"/>`).join("");
+};
+const bolt = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#pp-bolt)"/>`;
+// collar across the pipe; vertical=true for a pipe running up/down
+const flange = (x, y, w, vertical) => {
+  const a = w * 1.55, b = w * 0.42;
+  const [rw, rh] = vertical ? [a, b] : [b, a];
+  return `<rect x="${x - rw / 2}" y="${y - rh / 2}" width="${rw}" height="${rh}" rx="${w * 0.08}" fill="url(#pp-brass)" stroke="#140b04"/>`;
+};
+const tee = (x, y, w) =>
+  `<rect x="${x - w * 0.8}" y="${y - w * 0.8}" width="${w * 1.6}" height="${w * 1.6}" rx="${w * 0.25}" fill="url(#pp-brass)" stroke="#140b04"/>` +
+  bolt(x, y, w * 0.18);
+const bracket = (x, y, w) =>
+  `<rect x="${x - w * 1.25}" y="${y - w * 0.22}" width="${w * 2.5}" height="${w * 0.44}" fill="#24211f" stroke="#000"/>` +
+  bolt(x - w * 1.02, y, w * 0.13) + bolt(x + w * 1.02, y, w * 0.13);
+const valve = (x, y, w) => {
+  const r = w * 1.5;
+  const spokes = [0, 60, 120].map((a) => {
+    const c = Math.cos((a * Math.PI) / 180) * r, s = Math.sin((a * Math.PI) / 180) * r;
+    return `<line x1="${x - c}" y1="${y - s}" x2="${x + c}" y2="${y + s}"/>`;
+  }).join("");
+  return `<g stroke="#5c1f12" stroke-width="${w * 0.22}" stroke-linecap="round" fill="none">
+    <circle cx="${x}" cy="${y}" r="${r}"/>${spokes}</g>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="rgba(255,190,150,.25)" stroke-width="${w * 0.06}"/>
+    <circle cx="${x}" cy="${y}" r="${w * 0.35}" fill="url(#pp-brass)" stroke="#140b04"/>`;
+};
+
+function drawPipes() {
+  const W = document.documentElement.clientWidth, H = document.documentElement.scrollHeight;
+  const sx0 = scrollX, sy0 = scrollY;
+  const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left + sx0, r: r.right + sx0, t: r.top + sy0, b: r.bottom + sy0, h: r.height }; };
+  const board = rect($(".board"));
+  const cs = counters.map((c) => rect(c.el)); // [final, 1..6]
+  if (cs.length < 7) return;
+  const w = Math.max(7, cs[1].h * 0.15), wt = Math.max(9, cs[1].h * 0.21);
+  const y = (r) => r.t + r.h * 0.42;
+  const cx = board.l + (board.r - board.l) / 2;
+  const twoCols = cs[1].r < cx && cs[4].l > cx;
+
+  let pipes = "", fit = "";
+  for (const side of ["l", "r"]) {
+    // clocks that connect to this side's trunk
+    const mine = cs.map((r, i) => [r, i]).filter(([r, i]) => i === 0 || !twoCols || (side === "l" ? r.r < cx : r.l > cx));
+    const edge = side === "l" ? Math.min(...mine.map(([r]) => r.l)) : Math.max(...mine.map(([r]) => r.r));
+    const room = side === "l" ? edge - board.l : board.r - edge;
+    if (room < wt * 2.2) continue;
+    const x = side === "l" ? board.l + room * 0.45 : board.r - room * 0.45;
+    pipes += pipe([[x, -40], [x, H + 40]], wt);
+    const ys = [];
+    for (const [r, i] of mine) {
+      const yy = y(r), end = side === "l" ? r.l : r.r;
+      // some branches run straight through the trunk and off the screen
+      const off = (side === "l" ? [0, 2] : [0, 6]).includes(i);
+      pipes += pipe([[off ? (side === "l" ? -40 : W + 40) : x, yy], [end, yy]], w);
+      fit += tee(x, yy, wt) + flange(end + (side === "l" ? -w * 0.3 : w * 0.3), yy, w, false);
+      ys.push(yy);
+    }
+    for (let by = H * 0.08; by < H; by += H * 0.17) {
+      if (ys.every((yy) => Math.abs(yy - by) > wt * 2.5)) fit += bracket(x, by, wt);
+    }
+    if (side === "l" && ys.length > 2) fit += valve(x, (ys[1] + ys[2]) / 2, wt);
+  }
+
+  if (twoCols) {
+    // middle trunk from the final clock down off the screen, feeding rows 1 and 2
+    const top = cs[0].b;
+    pipes += pipe([[cx, top], [cx, H + 40]], w);
+    fit += flange(cx, top + w * 0.3, w, true);
+    for (const [a, b] of [[1, 4], [2, 5]]) {
+      const ya = y(cs[a]), yb = y(cs[b]);
+      pipes += pipe([[cs[a].r, ya], [cx, ya]], w) + pipe([[cx, yb], [cs[b].l, yb]], w);
+      fit += flange(cs[a].r + w * 0.3, ya, w, false) + flange(cs[b].l - w * 0.3, yb, w, false) + tee(cx, ya, w);
+    }
+    fit += valve(cx, (top + y(cs[1])) / 2, w * 0.9);
+  }
+
+  pipesSvg.setAttribute("width", W);
+  pipesSvg.setAttribute("height", H);
+  pipesSvg.innerHTML = `
+    <defs>
+      <linearGradient id="pp-brass" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#a27a44"/><stop offset=".45" stop-color="#5c4020"/><stop offset="1" stop-color="#2a1a0a"/>
+      </linearGradient>
+      <radialGradient id="pp-bolt" cx=".35" cy=".35"><stop offset="0" stop-color="#b8b0a4"/><stop offset=".5" stop-color="#4c4640"/><stop offset="1" stop-color="#151311"/></radialGradient>
+      <filter id="pp-shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="3" dy="5" stdDeviation="3" flood-opacity=".75"/></filter>
+    </defs>
+    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${pipes}${fit}</g>`;
+}
+
+let pipesQueued = false;
+function queuePipes() {
+  if (pipesQueued) return;
+  pipesQueued = true;
+  requestAnimationFrame(() => { pipesQueued = false; drawPipes(); });
+}
+const pipeWatch = new ResizeObserver(queuePipes);
 
 /* ---------- Steam ----------
    Billowing puffs drifting up over the whole page, plus the odd burst of a

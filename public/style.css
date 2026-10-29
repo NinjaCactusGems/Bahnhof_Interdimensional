@@ -47,6 +47,16 @@ body::after {
   mix-blend-mode: overlay;
 }
 
+/* pipes run over the board and frame, under the steam */
+#pipes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
 #steam {
   position: fixed;
   inset: 0;
