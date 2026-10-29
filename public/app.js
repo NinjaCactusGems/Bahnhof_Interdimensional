@@ -143,8 +143,15 @@ function render() {
     row.className = "row";
     row.style.setProperty("--portal", PORTAL[i]);
     row.innerHTML = `
-      <div class="plaque">Gleis ${i + 1}</div>
+      <div class="head"><div class="plaque">Gleis ${i + 1}</div></div>
       <div class="clock"></div>`;
+    if (t.note) {
+      const note = document.createElement("div");
+      note.className = "note paper";
+      note.innerHTML = '<div class="scrap"></div>';
+      note.firstChild.textContent = t.note;
+      $(".head", row).append(note);
+    }
     list.append(row);
     const el = $(".clock", row);
     return { el, row, set: clock(el), state: (now) => trackState(t, now) };
@@ -457,6 +464,7 @@ $("#track-fields").innerHTML = PORTAL.map((c, i) => `
     <legend>Gleis ${i + 1}</legend>
     <label>Öffnet <input name="open${i}" type="datetime-local" required></label>
     <label>Schließt <input name="close${i}" type="datetime-local" required></label>
+    <label class="wide">Notiz (nur sichtbar, solange das Gleis offen ist) <input name="note${i}" maxlength="140"></label>
   </fieldset>`).join("");
 
 function openSettings() {
@@ -467,6 +475,7 @@ function openSettings() {
   data.tracks.forEach((t, i) => {
     f["open" + i].value = toLocal(t.open);
     f["close" + i].value = toLocal(t.close);
+    f["note" + i].value = t.note ?? "";
   });
   try { f.pw.value = localStorage.getItem("stellwerk-pw") ?? ""; } catch { /* storage blocked */ }
   msg.textContent = "";
@@ -489,6 +498,7 @@ form.addEventListener("submit", async (e) => {
     tracks: data.tracks.map((_, i) => ({
       open: fromLocal(f["open" + i].value),
       close: fromLocal(f["close" + i].value),
+      note: f["note" + i].value.trim(),
     })),
   };
   const bad = next.tracks.findIndex((t) => Date.parse(t.close) <= Date.parse(t.open));

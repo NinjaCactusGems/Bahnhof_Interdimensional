@@ -23,7 +23,8 @@ const isText = (s) => typeof s === "string" && s.length <= 60;
 function valid(d) {
   return d && d.final && isText(d.final.name) && isDate(d.final.at) &&
     Array.isArray(d.tracks) && d.tracks.length === 6 &&
-    d.tracks.every((t) => t && isDate(t.open) && isDate(t.close));
+    d.tracks.every((t) => t && isDate(t.open) && isDate(t.close) &&
+      (t.note === undefined || (typeof t.note === "string" && t.note.length <= 140)));
 }
 
 export default {
