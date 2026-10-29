@@ -234,18 +234,20 @@ function steam(dt) {
 }
 
 /* ---------- Neon signs ----------
-   The signs burn steadily; every few seconds one stutters off and back on.
-   A random duration stretches the same flicker pattern, so some dropouts
-   are a quick blink and others leave the sign dark for a moment. */
+   The signs burn steadily; every few seconds one stutters (.flicker) or,
+   about a third of the time, drops out completely for a while (.outage).
+   A random duration stretches each pattern so no two dropouts match. */
 
 function neonSigns(dt) {
   if (Math.random() > dt / 3000) return;
-  const signs = [...document.querySelectorAll(".title, .plaque")].filter((el) => !el.classList.contains("flicker"));
+  const signs = [...document.querySelectorAll(".title, .plaque")]
+    .filter((el) => !el.classList.contains("flicker") && !el.classList.contains("outage"));
   const el = signs[Math.floor(Math.random() * signs.length)];
   if (!el) return;
-  el.style.animationDuration = rand(1.2, 4) + "s";
-  el.classList.add("flicker");
-  el.addEventListener("animationend", () => el.classList.remove("flicker"), { once: true });
+  const out = Math.random() < 0.35;
+  el.style.animationDuration = (out ? rand(4, 10) : rand(1.2, 4)) + "s";
+  el.classList.add(out ? "outage" : "flicker");
+  el.addEventListener("animationend", () => el.classList.remove("flicker", "outage"), { once: true });
 }
 
 let last = performance.now();
