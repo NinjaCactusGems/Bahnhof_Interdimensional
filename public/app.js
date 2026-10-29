@@ -4,7 +4,42 @@ const H = 3600e3;
 const PORTAL = ["#3fa9ff", "#b45cff", "#5dff8a", "#ff9a3c", "#3ff3ff", "#d86bff"];
 const $ = (s, el = document) => el.querySelector(s);
 
-/* ---------- Nixie clock ---------- */
+/* ---------- Nixie clock ----------
+   Glass, sockets, mesh and the faint unlit cathodes are static CSS that never
+   repaints. Only the lit digits change, and those are copied from cached glow
+   sprites onto one canvas per clock: no restyle, no repaint of the tube art,
+   which is what made weak TV hardware choke. */
+
+const DPR = Math.min(devicePixelRatio || 1, 1.5);
+const sprites = new Map(); // "char|w|h|glow|core" -> pre-rendered lit digit
+let layoutGen = 0; // bumped whenever tubes may have moved or resized
+
+function glyph(char, w, h, glow, core) {
+  const key = [char, w, h, glow, core].join("|");
+  let s = sprites.get(key);
+  if (s) return s;
+  s = document.createElement("canvas");
+  s.width = w;
+  s.height = h;
+  const g = s.getContext("2d");
+  g.font = `${h * 0.74}px "Nixie One", monospace`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = core;
+  g.shadowColor = glow;
+  for (const blur of [w * 0.3, w * 0.06]) { g.shadowBlur = blur; g.fillText(char, w / 2, h * 0.52); }
+  // the anode mesh sits in front of the cathode: cut its lines out of the glow
+  g.globalCompositeOperation = "destination-out";
+  g.globalAlpha = 0.34;
+  g.shadowBlur = 0;
+  g.lineWidth = DPR;
+  g.beginPath();
+  const step = (3 * DPR) / Math.cos(Math.PI / 6), run = h * Math.tan(Math.PI / 6);
+  for (let x = -run; x < w + run; x += step) { g.moveTo(x, 0); g.lineTo(x + run, h); g.moveTo(x + run, 0); g.lineTo(x, h); }
+  g.stroke();
+  sprites.set(key, s);
+  return s;
+}
 
 function tube(chars) {
   const el = document.createElement("span");
@@ -20,7 +55,7 @@ function tube(chars) {
   let cur = null;
   return {
     el,
-    set(c) {
+    set(c) { // CSS-lit; only used for the rarely changing minus sign
       if (c === cur) return;
       cath[cur]?.classList.remove("on");
       cath[c]?.classList.add("on");
@@ -43,20 +78,56 @@ function clock(el) {
   hours.className = "group";
   let hTubes = [];
   const rest = [digits(), digits(), digits(), digits(), digits(), digits(), digits()];
+  const cv = document.createElement("canvas");
+  cv.className = "lit";
   el.append(sign.el, hours, bulbs("colon"), rest[0].el, rest[1].el, bulbs("colon"),
-    rest[2].el, rest[3].el, bulbs("point"), rest[4].el, rest[5].el, rest[6].el);
+    rest[2].el, rest[3].el, bulbs("point"), rest[4].el, rest[5].el, rest[6].el, cv);
+  const ctx = cv.getContext("2d");
 
-  return (ms) => {
+  let gen = -1, cells = [], shown = [], state, glow, core, alpha = 1;
+  function layout() {
+    gen = layoutGen;
+    cv.width = Math.round(el.clientWidth * DPR); // also clears the canvas
+    cv.height = Math.round(el.clientHeight * DPR);
+    cells = [...hTubes, ...rest].map(({ el: t }) => ({
+      x: Math.round(t.offsetLeft * DPR), y: Math.round(t.offsetTop * DPR),
+      w: Math.round(t.offsetWidth * DPR), h: Math.round(t.offsetHeight * DPR),
+    }));
+    shown = [];
+  }
+
+  return (ms, st) => {
     sign.set(ms < 0 ? "−" : null);
     const a = Math.abs(Math.trunc(ms));
     const h = String(Math.floor(a / H)).padStart(2, "0");
-    while (hTubes.length < h.length) { const t = digits(); hours.prepend(t.el); hTubes.unshift(t); }
-    while (hTubes.length > h.length) hTubes.shift().el.remove();
-    hTubes.forEach((t, i) => t.set(h[i]));
-    const tail = String(Math.floor(a / 60e3) % 60).padStart(2, "0") +
+    if (hTubes.length !== h.length) {
+      while (hTubes.length < h.length) { const t = digits(); hours.prepend(t.el); hTubes.unshift(t); }
+      while (hTubes.length > h.length) hTubes.shift().el.remove();
+      gen = -1;
+    }
+    if (st !== state) {
+      state = st;
+      const cs = getComputedStyle(el);
+      glow = cs.getPropertyValue("--glow").trim();
+      core = cs.getPropertyValue("--core").trim();
+      shown = [];
+    }
+    if (gen !== layoutGen) layout();
+    // glitching clocks flicker; everything else burns steady
+    const al = el.classList.contains("glitch") ? 0.55 + Math.random() * 0.45 : 1;
+    if (al !== alpha) { alpha = al; shown = []; }
+    const chars = h +
+      String(Math.floor(a / 60e3) % 60).padStart(2, "0") +
       String(Math.floor(a / 1e3) % 60).padStart(2, "0") +
       String(a % 1e3).padStart(3, "0");
-    rest.forEach((t, i) => t.set(tail[i]));
+    ctx.globalAlpha = alpha;
+    for (let i = 0; i < cells.length; i++) {
+      if (shown[i] === chars[i]) continue;
+      const c = cells[i];
+      ctx.clearRect(c.x, c.y, c.w, c.h);
+      ctx.drawImage(glyph(chars[i], c.w, c.h, glow, core), c.x, c.y);
+      shown[i] = chars[i];
+    }
   };
 }
 
@@ -161,7 +232,7 @@ function render() {
   pipeWatch.disconnect();
   pipeWatch.observe(document.body);
   counters.forEach((c) => pipeWatch.observe(c.el));
-  document.fonts.ready.then(queuePipes);
+  document.fonts.ready.then(() => { sprites.clear(); queuePipes(); });
 }
 
 /* ---------- Pipes ----------
@@ -190,7 +261,8 @@ const pipe = (pts, w) => {
     d += `L${px - ux * r} ${py - uy * r}Q${px} ${py} ${px + vx * r} ${py + vy * r}`;
   }
   d += `L${pts.at(-1)[0]} ${pts.at(-1)[1]}`;
-  return PIPE.map(([c, k, o = 1]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}" stroke-opacity="${o}"/>`).join("");
+  const shadow = `<path d="${d}" transform="translate(3 5)" stroke="rgba(0,0,0,.5)" stroke-width="${w * 1.1}"/>`;
+  return shadow + PIPE.map(([c, k, o = 1]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}" stroke-opacity="${o}"/>`).join("");
 };
 // rusted cast-iron block with top-left light
 const iron = (x, y, rw, rh, rx) =>
@@ -241,7 +313,7 @@ function drawPipes() {
     const mine = cs.map((r, i) => [r, i]).filter(([r, i]) => i === 0 || !twoCols || (side === "l" ? r.r < cx : r.l > cx));
     const edge = side === "l" ? Math.min(...mine.map(([r]) => r.l)) : Math.max(...mine.map(([r]) => r.r));
     const room = side === "l" ? edge - board.l : board.r - edge;
-    if (room < wt * 2.2) continue;
+    if (room < wt * 1.6) continue;
     const x = side === "l" ? board.l + room * 0.45 : board.r - room * 0.45;
     pipes += pipe([[x, -40], [x, H + 40]], wt);
     const ys = [];
@@ -299,17 +371,15 @@ function drawPipes() {
         <stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".45" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity=".8"/>
       </linearGradient>
       <radialGradient id="pp-bolt" cx=".35" cy=".35"><stop offset="0" stop-color="#6e655b"/><stop offset=".5" stop-color="#2c2723"/><stop offset="1" stop-color="#0b0a09"/></radialGradient>
-      <filter id="pp-shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="3" dy="5" stdDeviation="3" flood-opacity=".75"/></filter>
     </defs>
-    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${pipes}${fit}</g>
-    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${over}</g>`;
+    <g fill="none" stroke-linejoin="round">${pipes}${fit}${over}</g>`;
 }
 
 let pipesQueued = false;
 function queuePipes() {
   if (pipesQueued) return;
   pipesQueued = true;
-  requestAnimationFrame(() => { pipesQueued = false; drawPipes(); });
+  requestAnimationFrame(() => { pipesQueued = false; layoutGen++; sprites.clear(); drawPipes(); });
 }
 const pipeWatch = new ResizeObserver(queuePipes);
 
@@ -319,7 +389,7 @@ const pipeWatch = new ResizeObserver(queuePipes);
    value noise under a soft falloff, so it reads as wisps, not blobs. */
 
 function steamSprite() {
-  const S = 192, c = document.createElement("canvas");
+  const S = 128, c = document.createElement("canvas");
   c.width = c.height = S;
   const g = c.getContext("2d"), img = g.createImageData(S, S);
   const oct = [3, 6, 12, 24].map((n) => ({ n, v: Float32Array.from({ length: (n + 1) ** 2 }, Math.random) }));
@@ -346,9 +416,13 @@ function steamSprite() {
   g.putImageData(img, 0, 0);
   return c;
 }
-const SPRITES = Array.from({ length: 6 }, steamSprite);
+const SPRITES = Array.from({ length: 4 }, steamSprite);
 
-const RES = 1 / 1.5; // canvas pixels per CSS pixel
+// Puffs live in simulation units (U per CSS px, what sizes/speeds are tuned
+// in) but are drawn onto a canvas at RES per CSS px: soft steam doesn't need
+// the pixels, and weak TV GPUs do need the savings.
+const U = 1 / 1.5, RES = 1 / 3, K = RES / U;
+const PUFFS = 45;
 const sc = $("#steam"), sx = sc.getContext("2d");
 const fitSteam = () => { sc.width = innerWidth * RES; sc.height = innerHeight * RES; };
 fitSteam();
@@ -357,27 +431,27 @@ addEventListener("resize", fitSteam);
 const puffs = [];
 function addPuff(x, y, fast) {
   puffs.push({
-    x, y, r: rand(45, 130), age: 0, life: rand(8e3, 18e3), a: rand(0.22, fast ? 0.75 : 0.5),
+    x, y, r: rand(45, 130), age: 0, life: rand(8e3, 18e3), a: rand(0.28, fast ? 0.8 : 0.6),
     img: SPRITES[Math.floor(Math.random() * SPRITES.length)],
     rot: rand(0, 6.3), vr: rand(-0.00015, 0.00015),
     vx: rand(-0.008, 0.008) + (fast ? rand(-0.04, 0.04) : 0),
     vy: -rand(0.012, 0.035) - (fast ? rand(0.04, 0.08) : 0),
   });
 }
-for (let i = 0; i < 80; i++) { addPuff(Math.random() * sc.width, Math.random() * sc.height * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
+for (let i = 0; i < PUFFS; i++) { addPuff(Math.random() * innerWidth * U, Math.random() * innerHeight * U * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
 let nextBurst = 3e3;
 
 function steam(dt) {
   dt = Math.min(dt, 100);
-  const w = sc.width, h = sc.height;
-  if (puffs.length < 80) addPuff(rand(-0.1, 1.1) * w, h + 60, false);
+  const w = innerWidth * U, h = innerHeight * U;
+  if (puffs.length < PUFFS) addPuff(rand(-0.1, 1.1) * w, h + 60, false);
   if ((nextBurst -= dt) < 0) {
     const x = rand(0, w), y = rand(h * 0.4, h);
     for (let i = 0; i < 16; i++) addPuff(x + rand(-40, 40), y + rand(-25, 25), true);
     nextBurst = rand(5e3, 14e3);
   }
   sx.setTransform(1, 0, 0, 1, 0, 0);
-  sx.clearRect(0, 0, w, h);
+  sx.clearRect(0, 0, sc.width, sc.height);
   for (let i = puffs.length - 1; i >= 0; i--) {
     const p = puffs[i];
     p.age += dt;
@@ -388,7 +462,7 @@ function steam(dt) {
     p.rot += p.vr * dt;
     // quick to appear, slow to dissolve
     sx.globalAlpha = p.a * Math.min(1, p.age / (p.life * 0.15)) * (1 - p.age / p.life);
-    sx.setTransform(1, 0, 0, 1, p.x, p.y);
+    sx.setTransform(K, 0, 0, K, p.x * K, p.y * K);
     sx.rotate(p.rot);
     sx.drawImage(p.img, -p.r, -p.r, p.r * 2, p.r * 2);
   }
@@ -413,8 +487,10 @@ function neonSigns(dt) {
 
 let last = performance.now();
 function frame() {
-  const now = Date.now();
   const t = performance.now();
+  // ~30 fps: the milliseconds still race, and weak screens get half the repaints
+  if (t - last < 30) return requestAnimationFrame(frame);
+  const now = Date.now();
   steam(t - last);
   neonSigns(t - last);
   if (data) {
@@ -424,7 +500,7 @@ function frame() {
       c.remaining = s.target - now;
       const tgt = c.row ?? c.el;
       if (c.cls !== s.cls) { tgt.classList.remove("st-" + c.cls); tgt.classList.add("st-" + s.cls); c.cls = s.cls; }
-      c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0));
+      c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls);
     }
   }
   last = t;

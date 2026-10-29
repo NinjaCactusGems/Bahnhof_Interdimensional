@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
   --brass-grad: linear-gradient(170deg, #7a5622 0%, #e8c77a 18%, #a87b34 38%, #f3dc9c 52%, #8a6428 70%, #c99a4e 88%, #6b4a1e 100%);
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain: url("grain.png");
   /* rust.jpg: dark iron + rust, composited from ambientCG CC0 scans (Rust004/006/009) */
   --rivet: radial-gradient(circle at 40% 35%, #b9b3aa 0 .8px, #5b5650 1.6px, #1d1b19 2.8px, rgba(0, 0, 0, .45) 3.4px, transparent 4px);
   --engraved: 0 1px 0 rgba(255, 255, 255, .24), 0 -1px 0 rgba(0, 0, 0, .9), 0 0 1px #000;
@@ -29,22 +29,7 @@ body {
   padding: 1.2vmin;
   color: #e9dcc0;
   font-family: "IM Fell English", Georgia, serif;
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(10, 6, 3, .4), rgba(6, 3, 2, .9) 80%),
-    url("halle.jpg") center 30% / cover fixed,
-    #0a0604;
-}
-
-/* film grain over everything */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: var(--grain);
-  opacity: .2;
-  mix-blend-mode: overlay;
+  background: #0a0604;
 }
 
 /* pipes run over the board and frame, under the steam */
@@ -73,8 +58,7 @@ body::after {
   height: 100%;
   padding: max(10px, 1.1vmin);
   border-radius: 14px;
-  background: var(--grain), url("rust.jpg") center / cover, var(--steel);
-  background-blend-mode: normal, soft-light, normal;
+  background: var(--grain), linear-gradient(rgba(20, 18, 16, .55), rgba(20, 18, 16, .55)), url("rust.jpg") center / cover;
   box-shadow:
     0 40px 90px rgba(0, 0, 0, .85),
     0 0 0 1px #000,
@@ -113,7 +97,7 @@ body::after {
    letters cut into the metal underneath. */
 .title, .plaque {
   --lit-color: color-mix(in srgb, var(--neon) 40%, #fff);
-  --lit-glow: 0 0 .04em #fff, 0 0 .12em var(--neon), 0 0 .35em var(--neon), 0 0 .8em var(--neon), 0 0 1.8em color-mix(in srgb, var(--neon) 55%, transparent);
+  --lit-glow: 0 0 .04em #fff, 0 0 .2em var(--neon), 0 0 .7em color-mix(in srgb, var(--neon) 70%, transparent);
   position: relative;
   text-transform: uppercase;
   color: var(--lit-color);
@@ -126,7 +110,7 @@ body::after {
     linear-gradient(175deg, rgba(255, 255, 255, .07), transparent 40%, rgba(0, 0, 0, .35)),
     linear-gradient(rgba(22, 22, 22, .62), rgba(22, 22, 22, .62)),
     var(--grain),
-    url("rust.jpg") var(--rust-at, 40% 30%) / 1400px,
+    url("rust.jpg") var(--rust-at, 40% 30%) / 520px,
     #141414;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), inset 0 0 1.2em rgba(0, 0, 0, .7), 0 8px 18px rgba(0, 0, 0, .85);
 }
@@ -158,6 +142,7 @@ body::after {
 
 .finale {
   container-type: size;
+  background: radial-gradient(ellipse 50% 55% at 50% 62%, rgba(255, 106, 16, .12), transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -216,6 +201,8 @@ body::after {
   justify-content: center;
   gap: 1.6vmin;
   border-top: 1px solid rgba(232, 199, 122, .14);
+  /* the clock's light on the wall: a gradient, not a blurred shadow */
+  background: radial-gradient(ellipse 55% 50% at 50% 64%, color-mix(in srgb, var(--glow) 15%, transparent), transparent);
 }
 .row:nth-child(n + 4) { border-left: 1px solid rgba(232, 199, 122, .14); }
 
@@ -288,7 +275,7 @@ body::after {
     var(--rivet) calc(100% - 3px) calc(100% - 3px) / 8px 8px no-repeat,
     linear-gradient(160deg, rgba(255, 255, 255, .14), transparent 30%, rgba(0, 0, 0, .55) 70%, rgba(255, 255, 255, .06)),
     linear-gradient(rgba(14, 12, 10, .45), rgba(14, 12, 10, .45)),
-    url("rust.jpg") 20% 70% / 700px,
+    url("rust.jpg") 20% 70% / 520px,
     #151311;
   box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .08);
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
@@ -300,6 +287,7 @@ body::after {
   --tw: min(5.5cqw, 22cqh);
   --th: calc(var(--tw) * 1.75);
   position: relative;
+  isolation: isolate; /* keeps the sockets (z-index -1) above the wooden case */
   display: inline-flex;
   align-items: center;
   gap: calc(var(--tw) * .1);
@@ -310,20 +298,21 @@ body::after {
     inset 0 1px 0 rgba(255, 190, 130, .18),
     inset 0 0 0 2px #140803,
     inset 0 0 calc(var(--tw) * .5) rgba(0, 0, 0, .7),
-    0 3px 6px rgba(0, 0, 0, .8),
-    0 0 calc(var(--tw) * 1.2) color-mix(in srgb, var(--glow) 30%, transparent),
-    0 0 calc(var(--tw) * 3.5) color-mix(in srgb, var(--glow) 16%, transparent);
-  animation: hum 3.7s ease-in-out infinite alternate;
+    0 3px 6px rgba(0, 0, 0, .8);
 }
 .clock.big { --tw: min(5.8cqw, 30cqh); }
 
-/* slow mains hum in the glow */
-@keyframes hum {
-  from { filter: brightness(1); }
-  to { filter: brightness(1.15) saturate(1.1); }
-}
-
 .group { display: inline-flex; gap: inherit; }
+
+/* lit digits are drawn here from cached sprites (see clock() in app.js) */
+.lit {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
 
 .tube {
   position: relative;
@@ -334,7 +323,7 @@ body::after {
   border: 1px solid rgba(255, 240, 220, .16);
   background:
     linear-gradient(0deg, #0b0703 0, #2a1d0c 5%, #5a4222 7.5%, rgba(25, 16, 6, .7) 9%, transparent 15%),
-    radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--glow) 32%, transparent), transparent 72%),
+    radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--glow) 38%, transparent), transparent 75%),
     linear-gradient(90deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .12) 18%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 72%, rgba(255, 255, 255, .06) 86%, rgba(255, 255, 255, 0)),
     #0e0805;
   box-shadow: inset 0 0 calc(var(--tw) * .22) rgba(0, 0, 0, .9), inset 0 calc(var(--tw) * -.2) calc(var(--tw) * .2) rgba(0, 0, 0, .75);
@@ -383,11 +372,8 @@ body::after {
   z-index: 1;
   color: var(--core);
   text-shadow:
-    0 0 1px var(--glow),
-    0 0 calc(var(--tw) * .08) var(--glow),
-    0 0 calc(var(--tw) * .25) var(--glow),
-    0 0 calc(var(--tw) * .6) var(--glow),
-    0 0 calc(var(--tw) * 1.2) color-mix(in srgb, var(--glow) 70%, transparent);
+    0 0 calc(var(--tw) * .06) var(--glow),
+    0 0 calc(var(--tw) * .3) var(--glow);
 }
 
 /* separators: neon dots in their own narrow tube */
@@ -407,15 +393,15 @@ body::after {
   height: calc(var(--tw) * .18);
   border-radius: 50%;
   background: var(--core);
-  box-shadow: 0 0 calc(var(--tw) * .12) var(--glow), 0 0 calc(var(--tw) * .35) var(--glow), 0 0 calc(var(--tw) * .7) color-mix(in srgb, var(--glow) 60%, transparent);
+  box-shadow: 0 0 calc(var(--tw) * .25) var(--glow);
 }
 
 /* glitching clocks flicker and twitch */
 .glitch .cath.on, .glitch .sep i { animation: flicker .16s steps(2) infinite; }
 .clock.glitch { animation: twitch .5s steps(1) infinite; }
 @keyframes flicker {
-  0% { filter: brightness(1.35) saturate(1.2); }
-  50% { filter: brightness(.7); }
+  0% { opacity: 1; }
+  50% { opacity: .55; }
 }
 @keyframes twitch {
   0%, 70% { transform: none; }
