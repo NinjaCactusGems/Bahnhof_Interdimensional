@@ -3,38 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bahnhof Interdimensional</title>
+  <title>Abfahrten</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Nixie+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=IM+Fell+English+SC&family=IM+Fell+English&family=Nixie+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="frame">
     <div class="board">
-      <header class="plate head">
-        <span class="kicker">Hauptbahnhof</span>
-        <h1>Bahnhof Interdimensional</h1>
-        <span class="kicker">Portal-Fahrplan &middot; Abfahrt durch die Pforten</span>
-      </header>
+      <h1 class="title">Abfahrten</h1>
 
       <section class="finale">
-        <div class="finale-label">Letzte Abfahrt</div>
         <div class="finale-name" id="final-name">&nbsp;</div>
         <div class="clock big" id="final-clock"></div>
-        <div class="finale-when" id="final-when">&nbsp;</div>
       </section>
 
-      <div class="cols" aria-hidden="true">
-        <span>Gleis</span><span>Zug &middot; Ziel</span><span>Zeitmesser</span>
-      </div>
       <div id="tracks"></div>
-
-      <footer class="plate foot">
-        Fahrgäste werden gebeten, die Portale erst nach Freigabe zu betreten. Für verlorene Zeit wird nicht gehaftet.
-      </footer>
     </div>
   </main>
+
+  <canvas id="steam" aria-hidden="true"></canvas>
 
   <dialog id="settings">
     <form method="dialog" id="settings-form">
@@ -48,8 +37,8 @@
       <label class="pw">Passwort <input name="pw" type="password" autocomplete="current-password" required></label>
       <p class="msg" id="settings-msg" role="status"></p>
       <div class="buttons">
-        <button type="button" value="cancel" id="settings-cancel">Abbrechen</button>
-        <button type="submit" value="save">Speichern</button>
+        <button type="button" id="settings-cancel">Abbrechen</button>
+        <button type="submit">Speichern</button>
       </div>
     </form>
   </dialog>

@@ -31,7 +31,7 @@ function tube(chars) {
 
 const bulbs = (cls) => {
   const el = document.createElement("span");
-  el.className = cls;
+  el.className = "tube sep " + cls;
   el.innerHTML = "<i></i><i></i>";
   return el;
 };
@@ -118,23 +118,11 @@ function scheduleGlitches(counters, now, dt) {
 
 /* ---------- Timetable ---------- */
 
-const fmtWhen = new Intl.DateTimeFormat("de-DE", {
-  weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-});
-// "Do., 29.10.2026, 21:10" -> "Do., 29.10.2026 · 21:10 Uhr"
-const when = (iso) => fmtWhen.format(new Date(iso)).replace(/, (?=\d+:)/, " · ") + " Uhr";
-
-function duration(ms) {
-  const m = Math.round(ms / 60e3);
-  const d = Math.floor(m / 1440), h = Math.floor(m / 60) % 24, min = m % 60;
-  return [d && `${d} Tg`, h && `${h} Std`, (min || !(d || h)) && `${min} Min`].filter(Boolean).join(" ");
-}
-
 function trackState(t, now) {
   const open = Date.parse(t.open), close = Date.parse(t.close);
-  if (now < open) return { target: open, cls: open - now > H ? "green" : "orange", text: "Portal öffnet in" };
-  if (now < close) return { target: close, cls: "red", text: "Portal offen · schließt in" };
-  return { target: close, cls: "green", text: "Portal geschlossen seit" };
+  if (now < open) return { target: open, cls: open - now > H ? "green" : "orange" };
+  if (now < close) return { target: close, cls: "red" };
+  return { target: close, cls: "green" }; // closed: counts on into negative
 }
 
 let data = null;
@@ -147,7 +135,6 @@ const final = {
 
 function render() {
   $("#final-name").textContent = data.final.name;
-  $("#final-when").textContent = when(data.final.at);
 
   const list = $("#tracks");
   list.textContent = "";
@@ -156,29 +143,72 @@ function render() {
     row.className = "row";
     row.style.setProperty("--portal", PORTAL[i]);
     row.innerHTML = `
-      <div class="gleis"><span class="disc">${i + 1}</span><span class="portal"></span></div>
-      <div class="info">
-        <div class="zug"></div>
-        <div class="ziel"></div>
-        <div class="times"><span class="open"></span><span class="dur"></span></div>
-      </div>
-      <div class="status"><span class="lamp"></span><span class="text"></span></div>
+      <div class="plaque"><span class="portal"></span>Gleis ${i + 1}</div>
       <div class="clock"></div>`;
-    $(".zug", row).textContent = t.zug;
-    $(".ziel", row).textContent = t.ziel;
-    $(".open", row).textContent = "Öffnet " + when(t.open);
-    $(".dur", row).textContent = "Offen für " + duration(Date.parse(t.close) - Date.parse(t.open));
     list.append(row);
     const el = $(".clock", row);
-    return { el, row, text: $(".text", row), set: clock(el), state: (now) => trackState(t, now) };
+    return { el, row, set: clock(el), state: (now) => trackState(t, now) };
   });
   counters = [final, ...rows];
+}
+
+/* ---------- Steam ----------
+   Soft puffs drifting up over the whole page, plus the odd burst of a
+   locomotive venting. Drawn at half resolution; it's blurry anyway. */
+
+const sc = $("#steam"), sx = sc.getContext("2d");
+const PUFF = document.createElement("canvas");
+PUFF.width = PUFF.height = 128;
+{
+  const g = PUFF.getContext("2d"), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, "rgba(238,233,222,.7)");
+  r.addColorStop(0.45, "rgba(228,221,208,.32)");
+  r.addColorStop(1, "rgba(220,212,200,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+}
+const fitSteam = () => { sc.width = innerWidth / 2; sc.height = innerHeight / 2; };
+fitSteam();
+addEventListener("resize", fitSteam);
+
+const puffs = [];
+function addPuff(x, y, fast) {
+  puffs.push({
+    x, y, r: rand(30, 90), age: 0, life: rand(7e3, 16e3), a: rand(0.2, fast ? 0.7 : 0.42),
+    vx: rand(-0.008, 0.008) + (fast ? rand(-0.03, 0.03) : 0),
+    vy: -rand(0.012, 0.035) - (fast ? rand(0.03, 0.07) : 0),
+  });
+}
+for (let i = 0; i < 70; i++) { addPuff(Math.random() * sc.width, Math.random() * sc.height * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
+let nextBurst = 3e3;
+
+function steam(dt) {
+  dt = Math.min(dt, 100);
+  const w = sc.width, h = sc.height;
+  if (puffs.length < 90) addPuff(rand(-0.1, 1.1) * w, h + 40, false);
+  if ((nextBurst -= dt) < 0) {
+    const x = rand(0, w), y = rand(h * 0.4, h);
+    for (let i = 0; i < 14; i++) addPuff(x + rand(-30, 30), y + rand(-20, 20), true);
+    nextBurst = rand(5e3, 14e3);
+  }
+  sx.clearRect(0, 0, w, h);
+  for (let i = puffs.length - 1; i >= 0; i--) {
+    const p = puffs[i];
+    p.age += dt;
+    if (p.age > p.life) { puffs.splice(i, 1); continue; }
+    p.x += p.vx * dt + Math.sin((p.age + i * 999) / 1800) * 0.06;
+    p.y += p.vy * dt;
+    p.r += dt * 0.005;
+    sx.globalAlpha = p.a * Math.sin((Math.PI * p.age) / p.life);
+    sx.drawImage(PUFF, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+  }
 }
 
 let last = performance.now();
 function frame() {
   const now = Date.now();
   const t = performance.now();
+  steam(t - last);
   if (data) {
     scheduleGlitches(counters, now, t - last);
     for (const c of counters) {
@@ -186,7 +216,6 @@ function frame() {
       c.remaining = s.target - now;
       const tgt = c.row ?? c.el;
       if (c.cls !== s.cls) { tgt.classList.remove("st-" + c.cls); tgt.classList.add("st-" + s.cls); c.cls = s.cls; }
-      if (c.text && c.text.textContent !== s.text) c.text.textContent = s.text;
       c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0));
     }
   }
@@ -225,8 +254,6 @@ const fromLocal = (v) => new Date(v).toISOString();
 $("#track-fields").innerHTML = PORTAL.map((c, i) => `
   <fieldset style="--portal:${c}">
     <legend>Gleis ${i + 1}</legend>
-    <label>Zug <input name="zug${i}" maxlength="60" required></label>
-    <label>Ziel <input name="ziel${i}" maxlength="60" required></label>
     <label>Öffnet <input name="open${i}" type="datetime-local" required></label>
     <label>Schließt <input name="close${i}" type="datetime-local" required></label>
   </fieldset>`).join("");
@@ -237,8 +264,6 @@ function openSettings() {
   f["final-name"].value = data.final.name;
   f["final-at"].value = toLocal(data.final.at);
   data.tracks.forEach((t, i) => {
-    f["zug" + i].value = t.zug;
-    f["ziel" + i].value = t.ziel;
     f["open" + i].value = toLocal(t.open);
     f["close" + i].value = toLocal(t.close);
   });
@@ -261,8 +286,6 @@ form.addEventListener("submit", async (e) => {
   const next = {
     final: { name: f["final-name"].value.trim(), at: fromLocal(f["final-at"].value) },
     tracks: data.tracks.map((_, i) => ({
-      zug: f["zug" + i].value.trim(),
-      ziel: f["ziel" + i].value.trim(),
       open: fromLocal(f["open" + i].value),
       close: fromLocal(f["close" + i].value),
     })),

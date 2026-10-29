@@ -8,18 +8,9 @@ const H = 3600e3;
 // Seeded on first read, until someone saves a schedule via the secret menu.
 function defaults() {
   const now = Date.now();
-  const names = [
-    ["ZUG 101", "Nebelheim"],
-    ["ZUG 402", "Äthermoor"],
-    ["ZUG 237", "Chronos-Express"],
-    ["ZUG 771", "Nachfall"],
-    ["ZUG 556", "Eidolon"],
-    ["ZUG 918", "Vergängnis"],
-  ];
   return {
     final: { name: "Die Große Konvergenz", at: iso(now + 72 * H) },
-    tracks: names.map(([zug, ziel], i) => ({
-      zug, ziel,
+    tracks: [0, 1, 2, 3, 4, 5].map((i) => ({
       open: iso(now + (i * 9 + 0.5) * H),
       close: iso(now + (i * 9 + 3) * H),
     })),
@@ -32,7 +23,7 @@ const isText = (s) => typeof s === "string" && s.length <= 60;
 function valid(d) {
   return d && d.final && isText(d.final.name) && isDate(d.final.at) &&
     Array.isArray(d.tracks) && d.tracks.length === 6 &&
-    d.tracks.every((t) => t && isText(t.zug) && isText(t.ziel) && isDate(t.open) && isDate(t.close));
+    d.tracks.every((t) => t && isDate(t.open) && isDate(t.close));
 }
 
 export default {
