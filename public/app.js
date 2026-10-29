@@ -163,24 +163,36 @@ function render() {
    the screen, with flanges, wall brackets and valve wheels. */
 
 const pipesSvg = $("#pipes");
-const PIPE = [["#120a04", 1], ["#4a2f17", 0.82], ["#7a5229", 0.52], ["#b88a52", 0.16]]; // edge -> highlight
+// Rusted iron: the wall's rust texture, darkened, with a lighter core and a
+// faint sheen so the stroke reads as a round pipe. Outer edge -> centre.
+const PIPE = [
+  ["#060403", 1],
+  ["url(#pp-rust)", 0.88],
+  ["rgba(0,0,0,.6)", 0.88],
+  ["url(#pp-rust)", 0.5, 0.65],
+  ["rgba(205,160,110,.1)", 0.12],
+];
 
 const pipe = (pts, w) => {
   const d = "M" + pts.map((p) => p.join(" ")).join("L");
-  return PIPE.map(([c, k]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}"/>`).join("");
+  return PIPE.map(([c, k, o = 1]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}" stroke-opacity="${o}"/>`).join("");
 };
+// rusted cast-iron block with top-left light
+const iron = (x, y, rw, rh, rx) =>
+  `<rect x="${x}" y="${y}" width="${rw}" height="${rh}" rx="${rx}" fill="url(#pp-rust)" stroke="#050403"/>` +
+  `<rect x="${x}" y="${y}" width="${rw}" height="${rh}" rx="${rx}" fill="url(#pp-shade)"/>`;
 const bolt = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#pp-bolt)"/>`;
 // collar across the pipe; vertical=true for a pipe running up/down
 const flange = (x, y, w, vertical) => {
   const a = w * 1.55, b = w * 0.42;
   const [rw, rh] = vertical ? [a, b] : [b, a];
-  return `<rect x="${x - rw / 2}" y="${y - rh / 2}" width="${rw}" height="${rh}" rx="${w * 0.08}" fill="url(#pp-brass)" stroke="#140b04"/>`;
+  return iron(x - rw / 2, y - rh / 2, rw, rh, w * 0.08);
 };
 const tee = (x, y, w) =>
-  `<rect x="${x - w * 0.8}" y="${y - w * 0.8}" width="${w * 1.6}" height="${w * 1.6}" rx="${w * 0.25}" fill="url(#pp-brass)" stroke="#140b04"/>` +
+  iron(x - w * 0.8, y - w * 0.8, w * 1.6, w * 1.6, w * 0.25) +
   bolt(x, y, w * 0.18);
 const bracket = (x, y, w) =>
-  `<rect x="${x - w * 1.25}" y="${y - w * 0.22}" width="${w * 2.5}" height="${w * 0.44}" fill="#24211f" stroke="#000"/>` +
+  iron(x - w * 1.25, y - w * 0.22, w * 2.5, w * 0.44, 1) +
   bolt(x - w * 1.02, y, w * 0.13) + bolt(x + w * 1.02, y, w * 0.13);
 const valve = (x, y, w) => {
   const r = w * 1.5;
@@ -188,10 +200,12 @@ const valve = (x, y, w) => {
     const c = Math.cos((a * Math.PI) / 180) * r, s = Math.sin((a * Math.PI) / 180) * r;
     return `<line x1="${x - c}" y1="${y - s}" x2="${x + c}" y2="${y + s}"/>`;
   }).join("");
-  return `<g stroke="#5c1f12" stroke-width="${w * 0.22}" stroke-linecap="round" fill="none">
+  // old red paint, mostly rusted over
+  return `<g stroke="#3a140b" stroke-width="${w * 0.22}" stroke-linecap="round" fill="none">
     <circle cx="${x}" cy="${y}" r="${r}"/>${spokes}</g>
-    <circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="rgba(255,190,150,.25)" stroke-width="${w * 0.06}"/>
-    <circle cx="${x}" cy="${y}" r="${w * 0.35}" fill="url(#pp-brass)" stroke="#140b04"/>`;
+    <g stroke="url(#pp-rust)" stroke-opacity=".5" stroke-width="${w * 0.22}" fill="none"><circle cx="${x}" cy="${y}" r="${r}"/>${spokes}</g>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="rgba(255,180,140,.12)" stroke-width="${w * 0.05}"/>
+    <circle cx="${x}" cy="${y}" r="${w * 0.35}" fill="url(#pp-rust)" stroke="#050403"/>`;
 };
 
 function drawPipes() {
@@ -247,10 +261,13 @@ function drawPipes() {
   pipesSvg.setAttribute("height", H);
   pipesSvg.innerHTML = `
     <defs>
-      <linearGradient id="pp-brass" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#a27a44"/><stop offset=".45" stop-color="#5c4020"/><stop offset="1" stop-color="#2a1a0a"/>
+      <pattern id="pp-rust" patternUnits="userSpaceOnUse" width="960" height="540">
+        <image href="rust.jpg" width="960" height="540"/>
+      </pattern>
+      <linearGradient id="pp-shade" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".45" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity=".8"/>
       </linearGradient>
-      <radialGradient id="pp-bolt" cx=".35" cy=".35"><stop offset="0" stop-color="#b8b0a4"/><stop offset=".5" stop-color="#4c4640"/><stop offset="1" stop-color="#151311"/></radialGradient>
+      <radialGradient id="pp-bolt" cx=".35" cy=".35"><stop offset="0" stop-color="#6e655b"/><stop offset=".5" stop-color="#2c2723"/><stop offset="1" stop-color="#0b0a09"/></radialGradient>
       <filter id="pp-shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="3" dy="5" stdDeviation="3" flood-opacity=".75"/></filter>
     </defs>
     <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${pipes}${fit}</g>`;
