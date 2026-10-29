@@ -173,8 +173,16 @@ const PIPE = [
   ["rgba(205,160,110,.1)", 0.12],
 ];
 
+// orthogonal run through pts, every bend swept round like a bent pipe
 const pipe = (pts, w) => {
-  const d = "M" + pts.map((p) => p.join(" ")).join("L");
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i - 1], [px, py] = pts[i], [bx, by] = pts[i + 1];
+    const r = Math.min(w * 2.2, Math.hypot(px - ax, py - ay) / 2, Math.hypot(bx - px, by - py) / 2);
+    const ux = Math.sign(px - ax), uy = Math.sign(py - ay), vx = Math.sign(bx - px), vy = Math.sign(by - py);
+    d += `L${px - ux * r} ${py - uy * r}Q${px} ${py} ${px + vx * r} ${py + vy * r}`;
+  }
+  d += `L${pts.at(-1)[0]} ${pts.at(-1)[1]}`;
   return PIPE.map(([c, k, o = 1]) => `<path d="${d}" stroke="${c}" stroke-width="${w * k}" stroke-opacity="${o}"/>`).join("");
 };
 // rusted cast-iron block with top-left light
@@ -216,11 +224,11 @@ function drawPipes() {
   const cs = counters.map((c) => rect(c.el)); // [final, 1..6]
   if (cs.length < 7) return;
   const w = Math.max(7, cs[1].h * 0.15), wt = Math.max(9, cs[1].h * 0.21);
-  const y = (r) => r.t + r.h * 0.42;
+  const y = (r, k = 0.42) => r.t + r.h * k;
   const cx = board.l + (board.r - board.l) / 2;
   const twoCols = cs[1].r < cx && cs[4].l > cx;
 
-  let pipes = "", fit = "";
+  let pipes = "", fit = "", over = ""; // over: runs in front, shadowing the pipes behind
   for (const side of ["l", "r"]) {
     // clocks that connect to this side's trunk
     const mine = cs.map((r, i) => [r, i]).filter(([r, i]) => i === 0 || !twoCols || (side === "l" ? r.r < cx : r.l > cx));
@@ -255,6 +263,22 @@ function drawPipes() {
       fit += flange(cs[a].r + w * 0.3, ya, w, false) + flange(cs[b].l - w * 0.3, yb, w, false) + tee(cx, ya, w);
     }
     fit += valve(cx, (top + y(cs[1])) / 2, w * 0.9);
+
+    // cross-connections, each in its own lane through the gap and at its own
+    // height on the clock ends; where they cross, one simply runs over the other
+    const gl = Math.max(cs[1].r, cs[2].r, cs[3].r), gap = Math.min(cs[4].l, cs[5].l) - gl;
+    const lane = (k) => gl + gap * k;
+    const runs = [
+      [1, 0.2, 5, 0.2, lane(0.34)], // Gleis 1 -> Gleis 5
+      [2, 0.74, 4, 0.74, lane(0.66)], // Gleis 2 -> Gleis 4
+      [1, 0.8, 3, 0.5, lane(0.16)], // Gleis 1 -> Gleis 3
+    ];
+    for (const [a, ka, b, kb, x] of runs) {
+      const ya = y(cs[a], ka), yb = y(cs[b], kb);
+      const ea = cs[a].r, eb = b <= 3 ? cs[b].r : cs[b].l;
+      over += pipe([[ea, ya], [x, ya], [x, yb], [eb, yb]], w * 0.85) +
+        flange(ea + w * 0.3, ya, w * 0.85, false) + flange(eb + (b <= 3 ? w * 0.3 : -w * 0.3), yb, w * 0.85, false);
+    }
   }
 
   pipesSvg.setAttribute("width", W);
@@ -270,7 +294,8 @@ function drawPipes() {
       <radialGradient id="pp-bolt" cx=".35" cy=".35"><stop offset="0" stop-color="#6e655b"/><stop offset=".5" stop-color="#2c2723"/><stop offset="1" stop-color="#0b0a09"/></radialGradient>
       <filter id="pp-shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="3" dy="5" stdDeviation="3" flood-opacity=".75"/></filter>
     </defs>
-    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${pipes}${fit}</g>`;
+    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${pipes}${fit}</g>
+    <g filter="url(#pp-shadow)" fill="none" stroke-linejoin="round">${over}</g>`;
 }
 
 let pipesQueued = false;
