@@ -495,21 +495,25 @@ function neonSigns(dt) {
 let last = performance.now();
 function frame() {
   const t = performance.now();
+  stats.raf++;
   // ~30 fps: the milliseconds still race, and weak screens get half the repaints
   if (t - last < 30) return requestAnimationFrame(frame);
   const now = Date.now();
-  steam(t - last);
-  neonSigns(t - last);
+  if (opt.steam) steam(t - last);
+  if (opt.fx) neonSigns(t - last);
   if (data) {
-    scheduleGlitches(counters, now, t - last);
+    if (opt.fx) scheduleGlitches(counters, now, t - last);
     for (const c of counters) {
       const s = c.state(now);
       c.remaining = s.target - now;
       const tgt = c.row ?? c.el;
       if (c.cls !== s.cls) { tgt.classList.remove("st-" + c.cls); tgt.classList.add("st-" + s.cls); c.cls = s.cls; }
-      c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls);
+      if (opt.digits) c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls);
     }
   }
+  stats.frames++;
+  stats.js += performance.now() - t;
+  stats.gap = Math.max(stats.gap, t - last);
   last = t;
   requestAnimationFrame(frame);
 }
@@ -572,6 +576,8 @@ document.addEventListener("keydown", (e) => {
   else if (k === "f" && S < 8) setScale(S * 2);
   else if (k === "d" && S > 1) setScale(S / 2);
   else if (k === "r") toggleFullscreen();
+  else if (k === "i") toggleDiag();
+  else if (!diagEl.hidden && TOGGLES[k]) toggleOpt(TOGGLES[k][0]);
 });
 
 $("#settings-cancel").addEventListener("click", () => dlg.close());
@@ -643,6 +649,96 @@ function toggleFullscreen() {
   if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
   else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
 }
+
+/* ---------- Diagnostics (i) ----------
+   Frame rate, time spent in our own JS, screen and GPU info, plus switches
+   (1-4, only while shown) to turn the expensive layers off one at a time.
+   Low frame rate with little JS time means the browser's rendering and
+   compositing is the bottleneck, not this script. Switches are remembered. */
+
+const opt = { steam: true, pipes: true, digits: true, fx: true };
+try { Object.assign(opt, JSON.parse(localStorage.getItem("diag-opt"))); } catch { /* storage blocked */ }
+const TOGGLES = {
+  1: ["steam", "Dampf"],
+  2: ["pipes", "Rohre"],
+  3: ["digits", "Ziffern (Leuchtziffern-Canvas)"],
+  4: ["fx", "Effekte (Glitches, Neon-Flackern)"],
+};
+const stats = { raf: 0, frames: 0, js: 0, gap: 0, shown: null };
+const diagEl = $("#diag");
+let gpu;
+
+function gpuInfo() {
+  try {
+    const gl = document.createElement("canvas").getContext("webgl");
+    if (!gl) return "WebGL nicht verfügbar";
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const r = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return /swiftshader|llvmpipe|software/i.test(r) ? r + " (Software!)" : r;
+  } catch { return "WebGL-Fehler"; }
+}
+
+function applyOpts() {
+  const cl = document.documentElement.classList;
+  cl.toggle("no-steam", !opt.steam);
+  cl.toggle("no-pipes", !opt.pipes);
+  cl.toggle("no-digits", !opt.digits);
+  if (!opt.fx) {
+    for (const c of counters) { c.ep = null; c.el.classList.remove("glitch"); }
+    document.querySelectorAll(".flicker, .outage").forEach((el) => el.classList.remove("flicker", "outage"));
+  }
+}
+
+function toggleOpt(name) {
+  opt[name] = !opt[name];
+  try { localStorage.setItem("diag-opt", JSON.stringify(opt)); } catch { /* storage blocked */ }
+  applyOpts();
+  showDiag();
+}
+
+function toggleDiag() {
+  diagEl.hidden = !diagEl.hidden;
+  if (diagEl.hidden) return;
+  gpu ??= gpuInfo();
+  showDiag();
+}
+
+function showDiag() {
+  const s = stats.shown, dpr = devicePixelRatio || 1;
+  const onOff = (v) => (v ? "an" : "<b>aus</b>");
+  const keys = [
+    ["i", "Diagnose ausblenden"],
+    ["t", "Stellwerk (Fahrplan bearbeiten)"],
+    ["f", "Auflösung halbieren"],
+    ["d", "Auflösung verdoppeln"],
+    ["r", "Vollbild an/aus"],
+    ...Object.entries(TOGGLES).map(([k, [name, label]]) => [k, `${label}: ${onOff(opt[name])}`]),
+  ];
+  diagEl.innerHTML = `
+    <h2>Diagnose</h2>
+    <table>
+      <tr><th>Bilder/s</th><td>${s ? `${s.fps} <small>(Browser-Takt ${s.raf}/s)</small>` : "…"}</td></tr>
+      <tr><th>JS je Bild</th><td>${s ? s.js.toFixed(1) + " ms" : "…"}</td></tr>
+      <tr><th>Längste Pause</th><td>${s ? Math.round(s.gap) + " ms" : "…"}</td></tr>
+      <tr><th>Auflösung</th><td>${S === 1 ? "voll" : "1/" + S}</td></tr>
+      <tr><th>Bildschirm</th><td>${innerWidth}×${innerHeight} × ${dpr} = ${Math.round(innerWidth * dpr)}×${Math.round(innerHeight * dpr)} px</td></tr>
+      <tr><th>Grafik</th><td></td></tr>
+    </table>
+    <h3>Tasten</h3>
+    <table class="keys">${keys.map(([k, v]) => `<tr><th><kbd>${k}</kbd></th><td>${v}</td></tr>`).join("")}</table>
+    <p>1–4 nur bei eingeblendeter Diagnose; Schalter bleiben gespeichert.</p>`;
+  diagEl.querySelector("tr:nth-child(6) td").textContent = gpu; // driver string: text, not markup
+}
+
+setInterval(() => {
+  const n = Math.max(1, stats.frames);
+  stats.shown = { fps: stats.frames, raf: stats.raf, js: stats.js / n, gap: stats.gap };
+  Object.assign(stats, { raf: 0, frames: 0, js: 0, gap: 0 });
+  if (!diagEl.hidden) showDiag();
+}, 1000);
+
+applyOpts();
 
 addEventListener("resize", () => { fitSteam(); queuePipes(); });
 applyScale();
