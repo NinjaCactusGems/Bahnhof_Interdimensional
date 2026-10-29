@@ -233,11 +233,25 @@ function steam(dt) {
   }
 }
 
+/* ---------- Neon signs ----------
+   Every few seconds one iron sign strikes up like a neon tube; the CSS
+   animation flickers it on, burns, stutters off. */
+
+function neonSigns(dt) {
+  if (Math.random() > dt / 4500) return;
+  const signs = [...document.querySelectorAll(".title, .plaque")].filter((el) => !el.classList.contains("neon"));
+  const el = signs[Math.floor(Math.random() * signs.length)];
+  if (!el) return;
+  el.classList.add("neon");
+  el.addEventListener("animationend", () => el.classList.remove("neon"), { once: true });
+}
+
 let last = performance.now();
 function frame() {
   const now = Date.now();
   const t = performance.now();
   steam(t - last);
+  neonSigns(t - last);
   if (data) {
     scheduleGlitches(counters, now, t - last);
     for (const c of counters) {
