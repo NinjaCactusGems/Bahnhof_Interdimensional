@@ -234,16 +234,18 @@ function steam(dt) {
 }
 
 /* ---------- Neon signs ----------
-   Every few seconds one iron sign strikes up like a neon tube; the CSS
-   animation flickers it on, burns, stutters off. */
+   The signs burn steadily; every few seconds one stutters off and back on.
+   A random duration stretches the same flicker pattern, so some dropouts
+   are a quick blink and others leave the sign dark for a moment. */
 
 function neonSigns(dt) {
-  if (Math.random() > dt / 4500) return;
-  const signs = [...document.querySelectorAll(".title, .plaque")].filter((el) => !el.classList.contains("neon"));
+  if (Math.random() > dt / 3000) return;
+  const signs = [...document.querySelectorAll(".title, .plaque")].filter((el) => !el.classList.contains("flicker"));
   const el = signs[Math.floor(Math.random() * signs.length)];
   if (!el) return;
-  el.classList.add("neon");
-  el.addEventListener("animationend", () => el.classList.remove("neon"), { once: true });
+  el.style.animationDuration = rand(1.2, 4) + "s";
+  el.classList.add("flicker");
+  el.addEventListener("animationend", () => el.classList.remove("flicker"), { once: true });
 }
 
 let last = performance.now();

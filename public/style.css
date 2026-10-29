@@ -2,6 +2,7 @@
   color-scheme: dark;
   --brass-grad: linear-gradient(170deg, #7a5622 0%, #e8c77a 18%, #a87b34 38%, #f3dc9c 52%, #8a6428 70%, #c99a4e 88%, #6b4a1e 100%);
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* rust.jpg: dark iron + rust, composited from ambientCG CC0 scans (Rust004/006/009) */
   --rivet: radial-gradient(circle at 40% 35%, #b9b3aa 0 .8px, #5b5650 1.6px, #1d1b19 2.8px, rgba(0, 0, 0, .45) 3.4px, transparent 4px);
   --engraved: 0 1px 0 rgba(255, 255, 255, .24), 0 -1px 0 rgba(0, 0, 0, .9), 0 0 1px #000;
   --steel: linear-gradient(170deg, #2b2a28 0%, #4a4743 16%, #22211f 38%, #3d3a36 54%, #1a1918 72%, #34312d 88%, #151413 100%);
@@ -62,7 +63,7 @@ body::after {
   height: 100%;
   padding: max(10px, 1.1vmin);
   border-radius: 14px;
-  background: var(--grain), url("rust.svg") 0 0 / 500px, var(--steel);
+  background: var(--grain), url("rust.jpg") center / cover, var(--steel);
   background-blend-mode: normal, soft-light, normal;
   box-shadow:
     0 40px 90px rgba(0, 0, 0, .85),
@@ -93,17 +94,20 @@ body::after {
   background:
     radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0, 0, 0, .65)),
     var(--grain),
-    url("rust.svg") 0 0 / 700px;
+    url("rust.jpg") center / cover;
   box-shadow: inset 0 0 0 2px #050505, inset 0 0 70px rgba(0, 0, 0, .95);
 }
 
-/* Dark iron signs with letters cut into the metal. Now and then one
-   strikes up like a neon tube (class .neon, set from app.js). */
+/* Dark iron signs with neon letters that mostly burn steadily; now and
+   then one stutters off (class .flicker, set from app.js), showing the
+   letters cut into the metal underneath. */
 .title, .plaque {
+  --lit-color: color-mix(in srgb, var(--neon) 40%, #fff);
+  --lit-glow: 0 0 .04em #fff, 0 0 .12em var(--neon), 0 0 .35em var(--neon), 0 0 .8em var(--neon), 0 0 1.8em color-mix(in srgb, var(--neon) 55%, transparent);
   position: relative;
   text-transform: uppercase;
-  color: #0d0d0d;
-  text-shadow: var(--engraved);
+  color: var(--lit-color);
+  text-shadow: var(--lit-glow);
   background:
     var(--rivet) 9px 9px / 8px 8px no-repeat,
     var(--rivet) calc(100% - 9px) 9px / 8px 8px no-repeat,
@@ -112,7 +116,7 @@ body::after {
     linear-gradient(175deg, rgba(255, 255, 255, .07), transparent 40%, rgba(0, 0, 0, .35)),
     linear-gradient(rgba(22, 22, 22, .62), rgba(22, 22, 22, .62)),
     var(--grain),
-    url("rust.svg") var(--rust-at, 40% 30%) / 300px,
+    url("rust.jpg") var(--rust-at, 40% 30%) / 1400px,
     #141414;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), inset 0 0 1.2em rgba(0, 0, 0, .7), 0 8px 18px rgba(0, 0, 0, .85);
 }
@@ -126,25 +130,15 @@ body::after {
   border-radius: 4px;
 }
 
-.neon { animation: neon 4.6s steps(1, end) forwards; }
-@keyframes neon {
-  0%, 4%, 7.5%, 9%, 87%, 89%, 92.5%, 100% {
-    color: #0d0d0d;
-    text-shadow: var(--engraved);
-  }
-  2%, 6%, 8%, 11%, 88%, 91% {
-    color: color-mix(in srgb, var(--neon) 35%, #fff);
-    text-shadow: 0 0 .04em #fff, 0 0 .12em var(--neon), 0 0 .35em var(--neon), 0 0 .8em var(--neon), 0 0 1.8em color-mix(in srgb, var(--neon) 55%, transparent);
-  }
-  /* steady burn with a faint hum */
-  40%, 64% {
-    color: color-mix(in srgb, var(--neon) 45%, #fff);
-    text-shadow: 0 0 .04em #fff, 0 0 .1em var(--neon), 0 0 .3em var(--neon), 0 0 .7em var(--neon), 0 0 1.6em color-mix(in srgb, var(--neon) 50%, transparent);
-  }
+.flicker { animation: flicker 2.4s steps(1, end); }
+@keyframes flicker {
+  0%, 5%, 12%, 46%, 52%, 100% { color: var(--lit-color); text-shadow: var(--lit-glow); }
+  /* off: the dark engraving shows */
+  3%, 9%, 16%, 49% { color: #0d0d0d; text-shadow: var(--engraved); }
 }
 
-/* weld bead around signs and plaques */
-.title::before, .plaque::before {
+/* weld bead around the Abfahrten sign */
+.title::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -224,6 +218,17 @@ body::after {
 .row:nth-child(n + 4) { border-left: 1px solid rgba(232, 199, 122, .14); }
 
 /* iron platform plaque; its neon burns in the portal's colour */
+.plaque::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 7px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(160deg, #3a3a3a, #1b1b1b 28%, #0b0b0b 62%, #262626);
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255, 255, 255, .12);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
 .plaque {
   --neon: var(--portal);
   --rust-at: 60% 40%;
@@ -269,26 +274,28 @@ body::after {
   display: inline-block;
   width: var(--tw);
   height: var(--th);
-  border-radius: 45% 45% 10% 10% / 22% 22% 5% 5%;
+  border-radius: 45% 45% 6% 6% / 22% 22% 3% 3%;
   border: 1px solid rgba(255, 240, 220, .16);
   background:
+    linear-gradient(0deg, #0b0703 0, #2a1d0c 5%, #5a4222 7.5%, rgba(25, 16, 6, .7) 9%, transparent 15%),
     radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--glow) 32%, transparent), transparent 72%),
     linear-gradient(90deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .12) 18%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 72%, rgba(255, 255, 255, .06) 86%, rgba(255, 255, 255, 0)),
     #0e0805;
   box-shadow: inset 0 0 calc(var(--tw) * .22) rgba(0, 0, 0, .9), inset 0 calc(var(--tw) * -.2) calc(var(--tw) * .2) rgba(0, 0, 0, .75);
 }
-/* round wooden socket; the tube sits in a dark brass ring */
+/* round wooden socket; the tube's base sits in a dark brass ring as wide
+   as the tube, centred on its bottom edge so only the front lip shows */
 .tube::before {
   content: "";
   position: absolute;
   z-index: -1;
-  left: -10%;
-  right: -10%;
-  bottom: calc(var(--tw) * -.38);
-  height: calc(var(--tw) * .56);
+  left: -7%;
+  right: -7%;
+  bottom: calc(var(--tw) * -.3);
+  height: calc(var(--tw) * .5);
   border-radius: 50% / 45%;
   background:
-    radial-gradient(ellipse 48% 30% at 50% 40%, #22180a 0 56%, #806236 62%, #4a3416 72%, #1d1308 80%, transparent 84%),
+    radial-gradient(ellipse 50% 20% at 50% 40%, #120c05 0 86%, #7a5c30 88%, #4a3416 94%, #1d1308 98%, transparent 100%),
     linear-gradient(90deg, rgba(0, 0, 0, .6), rgba(255, 190, 130, .1) 30%, rgba(255, 190, 130, .04) 55%, rgba(0, 0, 0, .65)),
     var(--wood);
   box-shadow: 0 2px 3px rgba(0, 0, 0, .9);
