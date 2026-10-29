@@ -22,6 +22,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_KEY }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.156.0"
           command: deploy
           # Password for saving the timetable from the secret "t" menu.
           secrets: |
