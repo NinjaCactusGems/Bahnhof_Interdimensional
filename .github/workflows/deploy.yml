@@ -16,8 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Custom-domain route makes wrangler create the DNS record + cert in the
-      # ninja-cactus.com zone; the KV binding without an id is provisioned on first
-      # deploy.
+      # ninja-cactus.com zone.
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_KEY }}

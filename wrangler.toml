@@ -7,6 +7,6 @@ routes = [{ pattern = "interdimensional.ninja-cactus.com", custom_domain = true 
 [assets]
 directory = "./public"
 
-# No id: wrangler provisions the namespace on first deploy.
 [[kv_namespaces]]
 binding = "SCHEDULE"
+id = "2e119d0e83654dc4a9eba1433a182836"
