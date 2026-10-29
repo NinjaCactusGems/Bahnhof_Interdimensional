@@ -4,6 +4,8 @@
   --grain: url("grain.png");
   /* rust.jpg: dark iron + rust, composited from ambientCG CC0 scans (Rust004/006/009) */
   --rivet: radial-gradient(circle at 40% 35%, #b9b3aa 0 .8px, #5b5650 1.6px, #1d1b19 2.8px, rgba(0, 0, 0, .45) 3.4px, transparent 4px);
+  /* same rivet with relative stops, for elements sized in em */
+  --rivet-em: radial-gradient(circle at 40% 35%, #b9b3aa 0 12%, #5b5650 25%, #1d1b19 43%, rgba(0, 0, 0, .45) 52%, transparent 62%);
   --engraved: 0 1px 0 rgba(255, 255, 255, .24), 0 -1px 0 rgba(0, 0, 0, .9), 0 0 1px #000;
   --steel: linear-gradient(170deg, #2b2a28 0%, #4a4743 16%, #22211f 38%, #3d3a36 54%, #1a1918 72%, #34312d 88%, #151413 100%);
   --wood: repeating-linear-gradient(91deg, rgba(0, 0, 0, .2) 0 1px, transparent 1px 6px, rgba(255, 170, 110, .05) 6px 8px, transparent 8px 15px),
@@ -22,14 +24,46 @@ html { background: #0a0604; }
 
 /* Fullscreen: everything fits the viewport, no scrolling */
 body {
+  --s: 1; /* render-resolution divisor, set from app.js (keys f / d) */
   margin: 0;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  padding: 1.2vmin;
   color: #e9dcc0;
   font-family: "IM Fell English", Georgia, serif;
   background: #0a0604;
+}
+
+/* Everything lives on the stage. At reduced resolution (--s > 1) it is laid
+   out 1/s the size and scaled up; will-change makes Chrome rasterize the
+   small version and let the GPU stretch it: 1/s² of the pixels to paint.
+   Units inside are cq* (relative to the stage), not v*. */
+#stage {
+  position: relative;
+  height: 100%;
+  padding: calc(1.2vmin / var(--s));
+  container-type: size;
+}
+.scaled #stage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100vw / var(--s));
+  height: calc(100vh / var(--s));
+  transform-origin: 0 0;
+  will-change: transform;
+}
+#res-badge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  padding: 6px 12px;
+  font: 16px "IM Fell English", Georgia, serif;
+  color: #f0e2c2;
+  background: rgba(0, 0, 0, .75);
+  border: 1px solid #8a6428;
+  border-radius: 4px;
 }
 
 /* pipes run over the board and frame, under the steam */
@@ -56,7 +90,7 @@ body {
 .frame {
   position: relative;
   height: 100%;
-  padding: max(10px, 1.1vmin);
+  padding: max(4px, 1.1cqmin);
   border-radius: 14px;
   background: var(--grain), linear-gradient(rgba(20, 18, 16, .55), rgba(20, 18, 16, .55)), url("rust.jpg") center / cover;
   box-shadow:
@@ -117,9 +151,9 @@ body {
 .title {
   --neon: #ff7a1a;
   justify-self: center;
-  margin: 1.6vmin 0 0;
+  margin: 1.6cqmin 0 0;
   padding: .26em 1.3em .2em;
-  font: 900 clamp(22px, 4.6vmin, 60px) / 1.2 "Cinzel", serif;
+  font: 900 clamp(12px, 4.6cqmin, 60px) / 1.2 "Cinzel", serif;
   letter-spacing: .22em;
   border-radius: 2px;
 }
@@ -147,7 +181,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: .6vmin; /* not cqh: a container's own units resolve against its ancestor */
+  gap: .6cqmin; /* a container's own cq units resolve against its ancestor: the stage */
   border-bottom: 1px solid rgba(232, 199, 122, .2);
 }
 /* torn scraps of newspaper: the event's name, and notes on open tracks.
@@ -199,7 +233,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.6vmin;
+  gap: 1.6cqmin;
   border-top: 1px solid rgba(232, 199, 122, .14);
   /* the clock's light on the wall: a gradient, not a blurred shadow */
   background: radial-gradient(ellipse 55% 50% at 50% 64%, color-mix(in srgb, var(--glow) 15%, transparent), transparent);
@@ -265,14 +299,14 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  padding: 9px;
+  padding: .25em; /* em, so the frame shrinks with the lettering at low resolution */
   border-radius: inherit;
   pointer-events: none;
   background:
-    var(--rivet) 3px 3px / 8px 8px no-repeat,
-    var(--rivet) calc(100% - 3px) 3px / 8px 8px no-repeat,
-    var(--rivet) 3px calc(100% - 3px) / 8px 8px no-repeat,
-    var(--rivet) calc(100% - 3px) calc(100% - 3px) / 8px 8px no-repeat,
+    var(--rivet-em) .08em .08em / .22em .22em no-repeat,
+    var(--rivet-em) calc(100% - .08em) .08em / .22em .22em no-repeat,
+    var(--rivet-em) .08em calc(100% - .08em) / .22em .22em no-repeat,
+    var(--rivet-em) calc(100% - .08em) calc(100% - .08em) / .22em .22em no-repeat,
     linear-gradient(160deg, rgba(255, 255, 255, .14), transparent 30%, rgba(0, 0, 0, .55) 70%, rgba(255, 255, 255, .06)),
     linear-gradient(rgba(14, 12, 10, .45), rgba(14, 12, 10, .45)),
     url("rust.jpg") 20% 70% / 520px,
@@ -355,8 +389,8 @@ body {
   pointer-events: none;
   background:
     linear-gradient(100deg, transparent 12%, rgba(255, 255, 255, .16) 18%, transparent 26%),
-    repeating-linear-gradient(60deg, rgba(0, 0, 0, .34) 0 1px, transparent 1px 3px),
-    repeating-linear-gradient(-60deg, rgba(0, 0, 0, .34) 0 1px, transparent 1px 3px);
+    repeating-linear-gradient(60deg, rgba(0, 0, 0, .34) 0 calc(var(--tw) * .02), transparent 0 calc(var(--tw) * .06)),
+    repeating-linear-gradient(-60deg, rgba(0, 0, 0, .34) 0 calc(var(--tw) * .02), transparent 0 calc(var(--tw) * .06));
 }
 
 .cath {
@@ -471,9 +505,10 @@ button:active { transform: translateY(1px); }
 
 @media (max-aspect-ratio: 4/5) {
   body { height: auto; overflow: auto; }
-  .board { grid-template-rows: auto 34vw auto; }
+  #stage { container-type: inline-size; } /* height follows content here */
+  .board { grid-template-rows: auto 34cqw auto; }
   #tracks { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
-  .row { height: 40vw; min-height: 140px; }
+  .row { height: 40cqw; min-height: 140px; }
   .row:nth-child(n + 4) { border-left: 0; }
   .row .note { left: auto; right: -10cqw; top: -20%; max-width: 40cqw; transform: rotate(4deg); }
   .row .note .scrap { font-size: 3.6cqw; }

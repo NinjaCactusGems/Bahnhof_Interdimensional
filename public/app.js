@@ -4,6 +4,10 @@ const H = 3600e3;
 const PORTAL = ["#3fa9ff", "#b45cff", "#5dff8a", "#ff9a3c", "#3ff3ff", "#d86bff"];
 const $ = (s, el = document) => el.querySelector(s);
 
+const stage = $("#stage");
+let S = 1; // render-resolution divisor: 1 = full, 2 = half, ... (keys f / d)
+try { S = Math.min(8, Math.max(1, Number(localStorage.getItem("res-div")) || 1)); } catch { /* storage blocked */ }
+
 /* ---------- Nixie clock ----------
    Glass, sockets, mesh and the faint unlit cathodes are static CSS that never
    repaints. Only the lit digits change, and those are copied from cached glow
@@ -32,9 +36,9 @@ function glyph(char, w, h, glow, core) {
   g.globalCompositeOperation = "destination-out";
   g.globalAlpha = 0.34;
   g.shadowBlur = 0;
-  g.lineWidth = DPR;
+  g.lineWidth = w * 0.02; // mesh scales with the tube, like the CSS one
   g.beginPath();
-  const step = (3 * DPR) / Math.cos(Math.PI / 6), run = h * Math.tan(Math.PI / 6);
+  const step = (w * 0.06) / Math.cos(Math.PI / 6), run = h * Math.tan(Math.PI / 6);
   for (let x = -run; x < w + run; x += step) { g.moveTo(x, 0); g.lineTo(x + run, h); g.moveTo(x + run, 0); g.lineTo(x, h); }
   g.stroke();
   sprites.set(key, s);
@@ -296,9 +300,12 @@ const valve = (x, y, w) => {
 };
 
 function drawPipes() {
-  const W = document.documentElement.clientWidth, H = document.documentElement.scrollHeight;
-  const sx0 = scrollX, sy0 = scrollY;
-  const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left + sx0, r: r.right + sx0, t: r.top + sy0, b: r.bottom + sy0, h: r.height }; };
+  const W = stage.clientWidth, H = stage.scrollHeight;
+  const o = stage.getBoundingClientRect(), k = o.width / stage.offsetWidth; // current on-screen scale
+  const rect = (el) => {
+    const r = el.getBoundingClientRect();
+    return { l: (r.left - o.left) / k, r: (r.right - o.left) / k, t: (r.top - o.top) / k, b: (r.bottom - o.top) / k, h: r.height / k };
+  };
   const board = rect($(".board"));
   const cs = counters.map((c) => rect(c.el)); // [final, 1..6]
   if (cs.length < 7) return;
@@ -424,9 +431,9 @@ const SPRITES = Array.from({ length: 4 }, steamSprite);
 const U = 1 / 1.5, RES = 1 / 3, K = RES / U;
 const PUFFS = 45;
 const sc = $("#steam"), sx = sc.getContext("2d");
-const fitSteam = () => { sc.width = innerWidth * RES; sc.height = innerHeight * RES; };
+const viewW = () => innerWidth / S, viewH = () => innerHeight / S; // stage size in its own px
+const fitSteam = () => { sc.width = viewW() * RES; sc.height = viewH() * RES; };
 fitSteam();
-addEventListener("resize", fitSteam);
 
 const puffs = [];
 function addPuff(x, y, fast) {
@@ -438,12 +445,12 @@ function addPuff(x, y, fast) {
     vy: -rand(0.012, 0.035) - (fast ? rand(0.04, 0.08) : 0),
   });
 }
-for (let i = 0; i < PUFFS; i++) { addPuff(Math.random() * innerWidth * U, Math.random() * innerHeight * U * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
+for (let i = 0; i < PUFFS; i++) { addPuff(Math.random() * viewW() * U, Math.random() * viewH() * U * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
 let nextBurst = 3e3;
 
 function steam(dt) {
   dt = Math.min(dt, 100);
-  const w = innerWidth * U, h = innerHeight * U;
+  const w = viewW() * U, h = viewH() * U;
   if (puffs.length < PUFFS) addPuff(rand(-0.1, 1.1) * w, h + 60, false);
   if ((nextBurst -= dt) < 0) {
     const x = rand(0, w), y = rand(h * 0.4, h);
@@ -559,9 +566,12 @@ function openSettings() {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.key.toLowerCase() !== "t" || e.ctrlKey || e.metaKey || e.altKey || dlg.open) return;
-  if (e.target.closest?.("input, textarea")) return;
-  openSettings();
+  if (e.ctrlKey || e.metaKey || e.altKey || dlg.open || e.target.closest?.("input, textarea")) return;
+  const k = e.key.toLowerCase();
+  if (k === "t") openSettings();
+  else if (k === "f" && S < 8) setScale(S * 2);
+  else if (k === "d" && S > 1) setScale(S / 2);
+  else if (k === "r") toggleFullscreen();
 });
 
 $("#settings-cancel").addEventListener("click", () => dlg.close());
@@ -597,3 +607,42 @@ form.addEventListener("submit", async (e) => {
   render();
   dlg.close();
 });
+
+/* ---------- Render resolution (f / d) and fullscreen (r) ----------
+   At S > 1 the stage is laid out at 1/S size and scaled up. The layer is
+   created at scale 1 and only then scaled, so Chrome keeps rasterizing it
+   small and lets the GPU stretch it: 1/S² of the pixels to paint. */
+
+let badgeTimer;
+function setScale(s) {
+  S = s;
+  try { localStorage.setItem("res-div", S); } catch { /* storage blocked */ }
+  applyScale();
+  const b = $("#res-badge");
+  b.textContent = S === 1 ? "Auflösung: voll" : `Auflösung: 1/${S}`;
+  b.hidden = false;
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => { b.hidden = true; }, 1500);
+}
+
+function applyScale() {
+  document.body.style.setProperty("--s", S);
+  stage.style.transform = "";
+  // re-create the layer at scale 1 so its raster resolution is the small one
+  document.documentElement.classList.remove("scaled");
+  if (S > 1) {
+    document.documentElement.classList.add("scaled");
+    requestAnimationFrame(() => requestAnimationFrame(() => { stage.style.transform = `scale(${S})`; queuePipes(); }));
+  }
+  fitSteam();
+  queuePipes();
+}
+
+function toggleFullscreen() {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+}
+
+addEventListener("resize", () => { fitSteam(); queuePipes(); });
+applyScale();
