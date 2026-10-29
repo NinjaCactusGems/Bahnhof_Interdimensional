@@ -143,7 +143,7 @@ function render() {
     row.className = "row";
     row.style.setProperty("--portal", PORTAL[i]);
     row.innerHTML = `
-      <div class="plaque"><span class="portal"></span>Gleis ${i + 1}</div>
+      <div class="plaque">Gleis ${i + 1}</div>
       <div class="clock"></div>`;
     list.append(row);
     const el = $(".clock", row);
@@ -153,44 +153,69 @@ function render() {
 }
 
 /* ---------- Steam ----------
-   Soft puffs drifting up over the whole page, plus the odd burst of a
-   locomotive venting. Drawn at half resolution; it's blurry anyway. */
+   Billowing puffs drifting up over the whole page, plus the odd burst of a
+   locomotive venting. Each puff is a slowly turning sprite of multi-octave
+   value noise under a soft falloff, so it reads as wisps, not blobs. */
 
-const sc = $("#steam"), sx = sc.getContext("2d");
-const PUFF = document.createElement("canvas");
-PUFF.width = PUFF.height = 128;
-{
-  const g = PUFF.getContext("2d"), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  r.addColorStop(0, "rgba(238,233,222,.7)");
-  r.addColorStop(0.45, "rgba(228,221,208,.32)");
-  r.addColorStop(1, "rgba(220,212,200,0)");
-  g.fillStyle = r;
-  g.fillRect(0, 0, 128, 128);
+function steamSprite() {
+  const S = 192, c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d"), img = g.createImageData(S, S);
+  const oct = [3, 6, 12, 24].map((n) => ({ n, v: Float32Array.from({ length: (n + 1) ** 2 }, Math.random) }));
+  const ease = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      let f = 0, amp = 0.53;
+      for (const { n, v } of oct) {
+        const fx = (x / S) * n, fy = (y / S) * n, ix = fx | 0, iy = fy | 0;
+        const tx = ease(fx - ix), ty = ease(fy - iy), i = iy * (n + 1) + ix;
+        const a = v[i] + (v[i + 1] - v[i]) * tx, b = v[i + n + 1] + (v[i + n + 2] - v[i + n + 1]) * tx;
+        f += (a + (b - a) * ty) * amp;
+        amp *= 0.5;
+      }
+      const fall = Math.max(0, 1 - Math.hypot((2 * x) / S - 1, (2 * y) / S - 1));
+      const alpha = Math.min(1, Math.max(0, (f - 0.3 - (1 - fall) * 0.45) * 2.4)) * fall;
+      const k = (y * S + x) * 4, shade = 165 + 85 * f; // crests catch more light
+      img.data[k] = shade + 10;
+      img.data[k + 1] = shade + 5;
+      img.data[k + 2] = shade;
+      img.data[k + 3] = alpha * 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
 }
-const fitSteam = () => { sc.width = innerWidth / 2; sc.height = innerHeight / 2; };
+const SPRITES = Array.from({ length: 6 }, steamSprite);
+
+const RES = 1 / 1.5; // canvas pixels per CSS pixel
+const sc = $("#steam"), sx = sc.getContext("2d");
+const fitSteam = () => { sc.width = innerWidth * RES; sc.height = innerHeight * RES; };
 fitSteam();
 addEventListener("resize", fitSteam);
 
 const puffs = [];
 function addPuff(x, y, fast) {
   puffs.push({
-    x, y, r: rand(30, 90), age: 0, life: rand(7e3, 16e3), a: rand(0.2, fast ? 0.7 : 0.42),
-    vx: rand(-0.008, 0.008) + (fast ? rand(-0.03, 0.03) : 0),
-    vy: -rand(0.012, 0.035) - (fast ? rand(0.03, 0.07) : 0),
+    x, y, r: rand(45, 130), age: 0, life: rand(8e3, 18e3), a: rand(0.22, fast ? 0.75 : 0.5),
+    img: SPRITES[Math.floor(Math.random() * SPRITES.length)],
+    rot: rand(0, 6.3), vr: rand(-0.00015, 0.00015),
+    vx: rand(-0.008, 0.008) + (fast ? rand(-0.04, 0.04) : 0),
+    vy: -rand(0.012, 0.035) - (fast ? rand(0.04, 0.08) : 0),
   });
 }
-for (let i = 0; i < 70; i++) { addPuff(Math.random() * sc.width, Math.random() * sc.height * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
+for (let i = 0; i < 80; i++) { addPuff(Math.random() * sc.width, Math.random() * sc.height * 1.2, false); puffs[i].age = Math.random() * puffs[i].life; }
 let nextBurst = 3e3;
 
 function steam(dt) {
   dt = Math.min(dt, 100);
   const w = sc.width, h = sc.height;
-  if (puffs.length < 90) addPuff(rand(-0.1, 1.1) * w, h + 40, false);
+  if (puffs.length < 80) addPuff(rand(-0.1, 1.1) * w, h + 60, false);
   if ((nextBurst -= dt) < 0) {
     const x = rand(0, w), y = rand(h * 0.4, h);
-    for (let i = 0; i < 14; i++) addPuff(x + rand(-30, 30), y + rand(-20, 20), true);
+    for (let i = 0; i < 16; i++) addPuff(x + rand(-40, 40), y + rand(-25, 25), true);
     nextBurst = rand(5e3, 14e3);
   }
+  sx.setTransform(1, 0, 0, 1, 0, 0);
   sx.clearRect(0, 0, w, h);
   for (let i = puffs.length - 1; i >= 0; i--) {
     const p = puffs[i];
@@ -198,9 +223,13 @@ function steam(dt) {
     if (p.age > p.life) { puffs.splice(i, 1); continue; }
     p.x += p.vx * dt + Math.sin((p.age + i * 999) / 1800) * 0.06;
     p.y += p.vy * dt;
-    p.r += dt * 0.005;
-    sx.globalAlpha = p.a * Math.sin((Math.PI * p.age) / p.life);
-    sx.drawImage(PUFF, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    p.r += dt * 0.006;
+    p.rot += p.vr * dt;
+    // quick to appear, slow to dissolve
+    sx.globalAlpha = p.a * Math.min(1, p.age / (p.life * 0.15)) * (1 - p.age / p.life);
+    sx.setTransform(1, 0, 0, 1, p.x, p.y);
+    sx.rotate(p.rot);
+    sx.drawImage(p.img, -p.r, -p.r, p.r * 2, p.r * 2);
   }
 }
 

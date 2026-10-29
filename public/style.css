@@ -2,7 +2,10 @@
   color-scheme: dark;
   --brass-grad: linear-gradient(170deg, #7a5622 0%, #e8c77a 18%, #a87b34 38%, #f3dc9c 52%, #8a6428 70%, #c99a4e 88%, #6b4a1e 100%);
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --rivet: radial-gradient(circle at 40% 35%, #fff4cf 0 .8px, #c99a4e 1.6px, #4a3010 2.8px, rgba(0, 0, 0, .35) 3.4px, transparent 4px);
+  --rivet: radial-gradient(circle at 40% 35%, #b9b3aa 0 .8px, #5b5650 1.6px, #1d1b19 2.8px, rgba(0, 0, 0, .45) 3.4px, transparent 4px);
+  --steel: linear-gradient(170deg, #2b2a28 0%, #4a4743 16%, #22211f 38%, #3d3a36 54%, #1a1918 72%, #34312d 88%, #151413 100%);
+  --wood: repeating-linear-gradient(91deg, rgba(0, 0, 0, .2) 0 1px, transparent 1px 6px, rgba(255, 170, 110, .05) 6px 8px, transparent 8px 15px),
+    linear-gradient(180deg, #4d2513, #2c1309 60%, #1f0d06);
 }
 
 /* Nixie glow colours, set per state */
@@ -58,12 +61,13 @@ body::after {
   height: 100%;
   padding: max(10px, 1.1vmin);
   border-radius: 14px;
-  background: var(--brass-grad);
+  background: var(--grain), url("rust.svg") 0 0 / 500px, var(--steel);
+  background-blend-mode: normal, soft-light, normal;
   box-shadow:
     0 40px 90px rgba(0, 0, 0, .85),
-    0 0 0 1px #2a1a08,
-    inset 0 1px 0 rgba(255, 244, 210, .7),
-    inset 0 -2px 3px rgba(0, 0, 0, .5);
+    0 0 0 1px #000,
+    inset 0 1px 0 rgba(255, 255, 255, .18),
+    inset 0 -2px 3px rgba(0, 0, 0, .6);
 }
 
 /* rivets along all four edges */
@@ -86,27 +90,50 @@ body::after {
   overflow: hidden;
   border-radius: 6px;
   background:
+    radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0, 0, 0, .65)),
     var(--grain),
-    radial-gradient(ellipse at 50% 0%, #2a1c12, #130c08 60%, #0c0805);
-  box-shadow: inset 0 0 0 2px #0a0603, inset 0 0 60px rgba(0, 0, 0, .9);
+    url("rust.svg") 0 0 / 700px;
+  box-shadow: inset 0 0 0 2px #050505, inset 0 0 70px rgba(0, 0, 0, .95);
 }
 
-/* dark wooden sign with brass letters, as in the station hall */
+/* dark steel sign, letters engraved and rubbed with brass */
 .title {
+  position: relative;
   justify-self: center;
   margin: 1.6vmin 0 0;
-  padding: .12em 1.2em .08em;
+  padding: .18em 1.3em .12em;
   font: 900 clamp(22px, 4.6vmin, 60px) / 1.2 "Cinzel", serif;
   letter-spacing: .22em;
   text-transform: uppercase;
-  color: #ecc978;
-  text-shadow: 0 1px 0 rgba(255, 245, 210, .35), 0 -1px 0 #3a2408, 0 3px 4px #000;
+  color: #8f6f3c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .16), 0 -1px 1px #000, 0 0 .5em rgba(255, 170, 60, .12);
   border-radius: 4px;
   background:
+    var(--rivet) 9px 9px / 8px 8px no-repeat,
+    var(--rivet) calc(100% - 9px) 9px / 8px 8px no-repeat,
+    var(--rivet) 9px calc(100% - 9px) / 8px 8px no-repeat,
+    var(--rivet) calc(100% - 9px) calc(100% - 9px) / 8px 8px no-repeat,
     var(--grain),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 2px, transparent 2px 9px, rgba(255, 200, 140, .03) 9px 11px, transparent 11px 17px),
-    linear-gradient(180deg, #3b2414, #23140a);
-  box-shadow: 0 0 0 3px #7a5622, 0 0 0 5px #e8c77a, 0 0 0 7px #5e3f16, 0 8px 18px rgba(0, 0, 0, .8);
+    url("rust.svg") 40% 30% / 400px,
+    #1b1b1b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 18px rgba(0, 0, 0, .85);
+}
+
+/* weld bead around signs and plaques */
+.title::before, .plaque::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  /* overlapping ripples like a real bead, with a blue-straw heat tint */
+  background:
+    radial-gradient(ellipse 3px 3.5px at 40% 35%, #7e776d 0 .5px, #4d4741 1.2px, #2e2a26 2.2px, #171513 3.2px, transparent 3.6px) 0 0 / 3px 3px,
+    radial-gradient(ellipse 3px 3.5px at 40% 35%, #5f5850 0 .5px, #3a3531 1.4px, #1e1b19 2.6px, transparent 3.4px) 1.5px 1.5px / 3px 3px,
+    #1c1917;
+  box-shadow: 0 0 0 1px #000, 0 0 3px 1px rgba(90, 110, 170, .22), inset 0 0 2px 1px rgba(170, 140, 70, .18);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
 /* ---------- Final event ---------- */
@@ -146,100 +173,76 @@ body::after {
 }
 .row:nth-child(n + 4) { border-left: 1px solid rgba(232, 199, 122, .14); }
 
-/* cast-iron platform plaque with raised letters */
+/* dark steel plaque, letters engraved and energized by the portal's colour */
 .plaque {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: .5em;
-  padding: .2em 1.1em .14em .8em;
+  padding: .22em 1.1em .16em;
   font: 900 min(17cqh, 6.4cqw) / 1.2 "Cinzel", serif;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: #e4d8bd;
-  text-shadow: 0 -1px 0 rgba(255, 255, 255, .25), 0 2px 2px #000, 0 0 1px #000;
+  color: color-mix(in srgb, var(--portal) 55%, #0c0c0c);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, .14),
+    0 -1px 1px #000,
+    0 0 .2em color-mix(in srgb, var(--portal) 60%, transparent),
+    0 0 .6em color-mix(in srgb, var(--portal) 35%, transparent);
   border-radius: 5px;
   background:
-    var(--rivet) 6px 6px / 8px 8px no-repeat,
-    var(--rivet) calc(100% - 6px) 6px / 8px 8px no-repeat,
-    var(--rivet) 6px calc(100% - 6px) / 8px 8px no-repeat,
-    var(--rivet) calc(100% - 6px) calc(100% - 6px) / 8px 8px no-repeat,
-    radial-gradient(circle at 18% 80%, rgba(120, 60, 20, .35), transparent 18%),
-    radial-gradient(circle at 88% 20%, rgba(110, 55, 18, .3), transparent 14%),
+    var(--rivet) 9px 9px / 8px 8px no-repeat,
+    var(--rivet) calc(100% - 9px) 9px / 8px 8px no-repeat,
+    var(--rivet) 9px calc(100% - 9px) / 8px 8px no-repeat,
+    var(--rivet) calc(100% - 9px) calc(100% - 9px) / 8px 8px no-repeat,
+    radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--portal) 22%, transparent), transparent 70%),
     var(--grain),
-    linear-gradient(175deg, #3a3c3e, #1c1d1f 55%, #141516);
+    url("rust.svg") 60% 40% / 300px,
+    #161616;
   box-shadow:
-    inset 0 0 0 3px #101112,
-    inset 0 0 0 5px #4a4c4f,
-    inset 0 0 0 6px #0b0c0d,
-    inset 0 2px 1px 6px rgba(255, 255, 255, .06),
+    inset 0 0 .5em color-mix(in srgb, var(--portal) 22%, transparent),
+    0 0 .7em color-mix(in srgb, var(--portal) 28%, transparent),
+    0 0 2em color-mix(in srgb, var(--portal) 12%, transparent),
     0 6px 14px rgba(0, 0, 0, .85);
+  animation: energy 3.3s ease-in-out infinite alternate;
 }
-
-/* swirling portal in the track's colour, bright while open */
-.portal {
-  position: relative;
-  overflow: hidden;
-  flex: none;
-  width: .62em;
-  aspect-ratio: 3 / 4;
-  border-radius: 50% 50% 2px 2px / 40% 40% 2px 2px;
-  border: 2px solid #7a5622;
-  background: #050302;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--portal) 45%, transparent);
-  opacity: .5;
+/* portal open: the plaque crackles with its colour */
+.st-red .plaque {
+  color: color-mix(in srgb, var(--portal) 75%, #fff);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, .2),
+    0 -1px 1px #000,
+    0 0 .15em var(--portal),
+    0 0 .5em var(--portal),
+    0 0 1.2em color-mix(in srgb, var(--portal) 60%, transparent);
+  box-shadow:
+    inset 0 0 .8em color-mix(in srgb, var(--portal) 45%, transparent),
+    0 0 1em color-mix(in srgb, var(--portal) 60%, transparent),
+    0 0 3em color-mix(in srgb, var(--portal) 30%, transparent),
+    0 6px 14px rgba(0, 0, 0, .85);
+  animation: energy .9s steps(3) infinite alternate;
 }
-.portal::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  background:
-    radial-gradient(circle, rgba(0, 0, 0, .7), transparent 35%),
-    conic-gradient(var(--portal), transparent 25%, var(--portal) 50%, transparent 75%, var(--portal));
-  animation: swirl 5s linear infinite;
-}
-.st-red .portal {
-  opacity: 1;
-  box-shadow: 0 0 18px var(--portal), 0 0 36px color-mix(in srgb, var(--portal) 50%, transparent);
-}
-.st-red .portal::before { animation-duration: 1.4s; }
-@keyframes swirl { to { transform: rotate(1turn); } }
+@keyframes energy { to { filter: brightness(1.3) saturate(1.2); } }
 
 /* ---------- Nixie tubes ---------- */
 
 .clock {
-  --tw: min(6cqw, 23cqh);
+  --tw: min(5.5cqw, 22cqh);
   --th: calc(var(--tw) * 1.75);
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: calc(var(--tw) * .1);
-  padding: calc(var(--tw) * .22) calc(var(--tw) * .35) calc(var(--tw) * .42);
-  border-radius: 6px;
-  background:
-    var(--grain),
-    linear-gradient(180deg, #2a1b10, #120b06);
+  padding: calc(var(--tw) * .22) calc(var(--tw) * .4) calc(var(--tw) * .55);
+  border-radius: 7px;
+  background: var(--grain), var(--wood);
   box-shadow:
-    inset 0 0 0 1px rgba(232, 199, 122, .3),
-    inset 0 2px 6px rgba(0, 0, 0, .9),
+    inset 0 1px 0 rgba(255, 190, 130, .18),
+    inset 0 0 0 2px #140803,
+    inset 0 0 calc(var(--tw) * .5) rgba(0, 0, 0, .7),
+    0 3px 6px rgba(0, 0, 0, .8),
     0 0 calc(var(--tw) * 1.2) color-mix(in srgb, var(--glow) 30%, transparent),
     0 0 calc(var(--tw) * 3.5) color-mix(in srgb, var(--glow) 16%, transparent);
   animation: hum 3.7s ease-in-out infinite alternate;
 }
-.clock.big { --tw: min(6.3cqw, 31cqh); }
-
-/* brass socket rail the tubes stand on */
-.clock::after {
-  content: "";
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: calc(var(--tw) * .14);
-  height: calc(var(--tw) * .2);
-  border-radius: 2px;
-  background: var(--brass-grad);
-  box-shadow: 0 1px 2px #000;
-}
+.clock.big { --tw: min(5.8cqw, 30cqh); }
 
 /* slow mains hum in the glow */
 @keyframes hum {
@@ -262,6 +265,22 @@ body::after {
     linear-gradient(90deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .12) 18%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 72%, rgba(255, 255, 255, .06) 86%, rgba(255, 255, 255, 0)),
     #0e0805;
   box-shadow: inset 0 0 calc(var(--tw) * .22) rgba(0, 0, 0, .9), inset 0 calc(var(--tw) * -.2) calc(var(--tw) * .2) rgba(0, 0, 0, .75);
+}
+/* turned wooden socket with a brass collar under every tube */
+.tube::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -9%;
+  right: -9%;
+  bottom: calc(var(--tw) * -.34);
+  height: calc(var(--tw) * .42);
+  border-radius: 3px 3px 40% 40% / 3px 3px 30% 30%;
+  background:
+    linear-gradient(180deg, #e3bd6c 0, #8a6428 14%, #3a2408 22%, transparent 24%),
+    linear-gradient(90deg, rgba(0, 0, 0, .55), rgba(255, 190, 130, .12) 30%, rgba(255, 190, 130, .05) 55%, rgba(0, 0, 0, .6)),
+    var(--wood);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, .9);
 }
 /* hexagonal anode mesh in front of the cathodes + glass highlight */
 .tube::after {
@@ -304,8 +323,6 @@ body::after {
   align-items: center;
   justify-content: center;
   gap: calc(var(--th) * .2);
-  width: calc(var(--tw) * .5);
-  border-radius: 45% 45% 14% 14% / 16% 16% 5% 5%;
 }
 .point { justify-content: flex-end; padding-bottom: calc(var(--th) * .16); }
 .point i:first-child { display: none; }
