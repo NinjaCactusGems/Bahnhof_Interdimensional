@@ -1,0 +1,443 @@
+:root {
+  color-scheme: dark;
+  --ink: #e9dcc0;
+  --ink-dim: #b29d78;
+  --brass: #b8893f;
+  --brass-grad: linear-gradient(170deg, #7a5622 0%, #e8c77a 18%, #a87b34 38%, #f3dc9c 52%, #8a6428 70%, #c99a4e 88%, #6b4a1e 100%);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Nixie glow colours, set per state */
+.st-green  { --glow: #3dff6e; --core: #e2ffe6; }
+.st-orange { --glow: #ff8a14; --core: #fff0d6; }
+.st-red    { --glow: #ff2a14; --core: #ffe0d8; }
+.st-amber  { --glow: #ff6a10; --core: #ffe6c4; }
+
+* { box-sizing: border-box; }
+
+html { background: #0a0604; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: clamp(16px, 3vw, 48px) clamp(16px, 3vw, 48px);
+  color: var(--ink);
+  font-family: "IM Fell English", Georgia, serif;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(10, 6, 3, .4), rgba(6, 3, 2, .9) 80%),
+    url("halle.jpg") center 30% / cover fixed,
+    #0a0604;
+}
+
+/* film grain over everything */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--grain);
+  opacity: .22;
+  mix-blend-mode: overlay;
+}
+
+/* ---------- Frame & board ---------- */
+
+.frame {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--brass-grad);
+  box-shadow:
+    0 40px 90px rgba(0, 0, 0, .85),
+    0 0 0 1px #2a1a08,
+    inset 0 1px 0 rgba(255, 244, 210, .7),
+    inset 0 -2px 3px rgba(0, 0, 0, .5);
+}
+
+/* rivets along all four edges */
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  --rivet: radial-gradient(circle at 40% 35%, #fff4cf 0 .8px, #c99a4e 1.6px, #4a3010 2.8px, rgba(0, 0, 0, .35) 3.4px, transparent 4px);
+  background:
+    var(--rivet) 0 0 / 38px 8px repeat-x,
+    var(--rivet) 0 100% / 38px 8px repeat-x,
+    var(--rivet) 0 0 / 8px 38px repeat-y,
+    var(--rivet) 100% 0 / 8px 38px repeat-y;
+}
+
+.board {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  container-type: inline-size;
+  /* tube width follows the board, not the viewport */
+  --tw: clamp(17px, 2.6cqi, 32px);
+  background:
+    var(--grain),
+    radial-gradient(ellipse at 50% 0%, #2a1c12, #130c08 60%, #0c0805);
+  box-shadow: inset 0 0 0 2px #0a0603, inset 0 0 60px rgba(0, 0, 0, .9);
+}
+
+.plate {
+  position: relative;
+  background: var(--brass-grad);
+  color: #2b1906;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, .55), 0 -1px 0 rgba(60, 35, 5, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 244, 210, .6), inset 0 -2px 4px rgba(40, 20, 0, .45), 0 3px 8px rgba(0, 0, 0, .7);
+}
+
+.head {
+  padding: 14px 16px 12px;
+  border-bottom: 3px solid #1a0f05;
+}
+.head h1 {
+  margin: 0;
+  font: 400 clamp(30px, 5.4vw, 64px)/1.05 "UnifrakturMaguntia", serif;
+  letter-spacing: .01em;
+}
+.kicker {
+  display: block;
+  font: 400 clamp(11px, 1.3vw, 15px) "IM Fell English SC", serif;
+  letter-spacing: .3em;
+}
+
+.foot {
+  padding: 10px 16px;
+  font-size: clamp(11px, 1.2vw, 14px);
+  font-style: italic;
+  border-top: 3px solid #1a0f05;
+}
+
+/* ---------- Final event ---------- */
+
+.finale {
+  padding: clamp(18px, 3vw, 34px) 16px clamp(20px, 3vw, 36px);
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 106, 16, .07), transparent 65%);
+  border-bottom: 1px solid rgba(232, 199, 122, .25);
+}
+.finale-label {
+  font: 400 clamp(12px, 1.4vw, 16px) "IM Fell English SC", serif;
+  letter-spacing: .35em;
+  color: var(--ink-dim);
+}
+.finale-name {
+  font: 400 clamp(26px, 4.2vw, 50px)/1.1 "UnifrakturMaguntia", serif;
+  color: #f0e2c2;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .9);
+  margin: 4px 0 clamp(12px, 2vw, 22px);
+}
+.finale-when {
+  margin-top: 12px;
+  font-size: clamp(13px, 1.5vw, 18px);
+  font-style: italic;
+  color: var(--ink-dim);
+}
+
+/* ---------- Rows ---------- */
+
+.cols {
+  display: grid;
+  grid-template-columns: clamp(64px, 8vw, 104px) 1fr auto;
+  gap: 16px;
+  padding: 8px 20px;
+  font: 400 12px "IM Fell English SC", serif;
+  letter-spacing: .3em;
+  color: var(--ink-dim);
+  background: rgba(0, 0, 0, .35);
+}
+.cols span:last-child { text-align: right; }
+
+.row {
+  display: grid;
+  grid-template-columns: clamp(64px, 8vw, 104px) minmax(0, 1fr) auto;
+  grid-template-areas: "gleis info clock" "gleis status clock";
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 6px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(232, 199, 122, .2);
+  background: linear-gradient(180deg, rgba(255, 230, 180, .025), rgba(0, 0, 0, .25));
+}
+.row:nth-child(odd) { background-color: rgba(255, 220, 160, .015); }
+
+.gleis { grid-area: gleis; display: grid; justify-items: center; gap: 8px; }
+
+/* enamel disc in a brass bezel, like the platform clocks over the portals */
+.disc {
+  display: grid;
+  place-items: center;
+  width: clamp(40px, 4.6vw, 58px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font: 400 clamp(22px, 2.6vw, 32px) "IM Fell English", serif;
+  color: #241508;
+  background: radial-gradient(circle at 40% 35%, #fbf4e0, #e6d7b2 60%, #c9b689);
+  box-shadow:
+    0 0 0 3px #7a5622, 0 0 0 4px #f1d68c, 0 0 0 6px #5e3f16,
+    0 4px 10px rgba(0, 0, 0, .8),
+    inset 0 -3px 6px rgba(90, 60, 20, .35);
+}
+
+/* little swirling portal, brighter while open */
+.portal {
+  position: relative;
+  overflow: hidden;
+  width: clamp(26px, 3vw, 38px);
+  aspect-ratio: 3 / 4;
+  border-radius: 50% 50% 4px 4px / 40% 40% 4px 4px;
+  border: 2px solid #7a5622;
+  border-bottom-width: 3px;
+  background: #050302;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--portal) 45%, transparent);
+  opacity: .5;
+}
+.portal::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, .7), transparent 35%),
+    conic-gradient(var(--portal), transparent 25%, var(--portal) 50%, transparent 75%, var(--portal));
+  animation: swirl 5s linear infinite;
+}
+.st-red .portal {
+  opacity: 1;
+  box-shadow: 0 0 18px var(--portal), 0 0 36px color-mix(in srgb, var(--portal) 50%, transparent);
+}
+.st-red .portal::before { animation-duration: 1.4s; }
+@keyframes swirl { to { transform: rotate(1turn); } }
+
+.info { grid-area: info; min-width: 0; }
+.zug {
+  font: 400 clamp(11px, 1.15vw, 14px) "IM Fell English SC", serif;
+  letter-spacing: .22em;
+  color: var(--brass);
+}
+.ziel {
+  font-size: clamp(22px, 2.6vw, 34px);
+  line-height: 1.1;
+  color: #f2e6cb;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .9);
+  overflow-wrap: anywhere;
+}
+.times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  margin-top: 4px;
+  font-size: clamp(12px, 1.2vw, 15px);
+  font-style: italic;
+  color: var(--ink-dim);
+}
+
+.status {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 clamp(12px, 1.2vw, 15px) "IM Fell English SC", serif;
+  letter-spacing: .12em;
+  color: var(--ink);
+}
+.lamp {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #6b4a1e;
+  background: radial-gradient(circle at 40% 35%, var(--core), var(--glow) 55%, color-mix(in srgb, var(--glow) 40%, #000));
+  box-shadow: 0 0 8px var(--glow), 0 0 16px color-mix(in srgb, var(--glow) 50%, transparent);
+}
+
+/* ---------- Nixie tubes ---------- */
+
+.clock {
+  grid-area: clock;
+  --th: calc(var(--tw) * 1.75);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: calc(var(--tw) * .1);
+  padding: calc(var(--tw) * .22) calc(var(--tw) * .35) calc(var(--tw) * .42);
+  border-radius: 6px;
+  background:
+    var(--grain),
+    linear-gradient(180deg, #2a1b10, #120b06);
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 199, 122, .3),
+    inset 0 2px 6px rgba(0, 0, 0, .9),
+    0 2px 0 rgba(255, 230, 170, .08);
+}
+/* brass socket rail the tubes stand on */
+.clock::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: calc(var(--tw) * .14);
+  height: calc(var(--tw) * .2);
+  border-radius: 2px;
+  background: var(--brass-grad);
+  box-shadow: 0 1px 2px #000;
+}
+.clock.big { --tw: clamp(12px, 6.2cqi, 74px); }
+
+.group { display: inline-flex; gap: inherit; }
+
+.tube {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  width: var(--tw);
+  height: var(--th);
+  border-radius: 45% 45% 10% 10% / 22% 22% 5% 5%;
+  border: 1px solid rgba(255, 240, 220, .14);
+  background:
+    radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--glow, #ff6a10) 14%, transparent), transparent 70%),
+    linear-gradient(90deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .12) 18%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 72%, rgba(255, 255, 255, .06) 86%, rgba(255, 255, 255, 0)),
+    #0e0805;
+  box-shadow: inset 0 0 calc(var(--tw) * .25) rgba(0, 0, 0, .95), inset 0 calc(var(--tw) * -.2) calc(var(--tw) * .2) rgba(0, 0, 0, .8);
+}
+/* hexagonal anode mesh in front of the cathodes + glass highlight */
+.tube::after {
+  content: "";
+  position: absolute;
+  inset: 6% 8% 8%;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(100deg, transparent 12%, rgba(255, 255, 255, .16) 18%, transparent 26%),
+    repeating-linear-gradient(60deg, rgba(0, 0, 0, .38) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-60deg, rgba(0, 0, 0, .38) 0 1px, transparent 1px 3px);
+}
+
+.cath {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-top: 4%;
+  font: 400 calc(var(--th) * .74) / 1 "Nixie One", monospace;
+  color: rgba(150, 120, 95, .11);
+}
+.cath.on {
+  z-index: 1;
+  color: var(--core);
+  text-shadow:
+    0 0 1px var(--glow),
+    0 0 calc(var(--tw) * .12) var(--glow),
+    0 0 calc(var(--tw) * .35) var(--glow),
+    0 0 calc(var(--tw) * .8) color-mix(in srgb, var(--glow) 60%, transparent);
+}
+
+/* INS-1 style neon bulbs for the separators */
+.colon, .point {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--th) * .22);
+  width: calc(var(--tw) * .3);
+  height: var(--th);
+  align-items: center;
+}
+.point { justify-content: flex-end; padding-bottom: calc(var(--th) * .14); }
+.point i:first-child { display: none; }
+.colon i, .point i {
+  width: calc(var(--tw) * .2);
+  height: calc(var(--tw) * .2);
+  border-radius: 50%;
+  background: var(--core);
+  box-shadow: 0 0 calc(var(--tw) * .15) var(--glow), 0 0 calc(var(--tw) * .4) var(--glow);
+}
+
+/* glitching clocks flicker and twitch */
+.glitch .tube { animation: flicker .16s steps(2) infinite; }
+.glitch { animation: twitch .5s steps(1) infinite; }
+@keyframes flicker {
+  0% { filter: brightness(1.25) saturate(1.2); }
+  50% { filter: brightness(.7); }
+}
+@keyframes twitch {
+  0%, 70% { transform: none; }
+  72% { transform: translate(1px, -1px); }
+  86% { transform: translate(-1px, 0) skewX(-1deg); }
+}
+
+/* ---------- Secret settings ---------- */
+
+dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  color: #2b1906;
+  background: var(--grain), linear-gradient(180deg, #efe2c2, #d9c69a);
+  box-shadow: 0 0 0 6px #7a5622, 0 0 0 8px #e8c77a, 0 30px 80px #000;
+}
+dialog::backdrop { background: rgba(5, 3, 1, .75); }
+form { padding: 20px; }
+dialog h2 {
+  margin: 0 0 12px;
+  font: 400 34px "UnifrakturMaguntia", serif;
+  text-align: center;
+}
+fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px 12px;
+  border: 1px solid #8a6428;
+  border-left: 6px solid var(--portal, #8a6428);
+  border-radius: 6px;
+}
+legend { padding: 0 6px; font: 400 15px "IM Fell English SC", serif; letter-spacing: .15em; }
+label { display: grid; gap: 2px; font-size: 14px; }
+input {
+  width: 100%;
+  padding: 6px 8px;
+  font: 15px "IM Fell English", Georgia, serif;
+  color: #1d1105;
+  background: #fbf5e4;
+  border: 1px solid #8a6428;
+  border-radius: 4px;
+  color-scheme: light;
+}
+.pw { max-width: 280px; }
+.msg { min-height: 1.3em; margin: 8px 0; font-style: italic; color: #8a1d0c; }
+.buttons { display: flex; justify-content: flex-end; gap: 10px; }
+button {
+  padding: 8px 18px;
+  font: 400 16px "IM Fell English SC", serif;
+  letter-spacing: .1em;
+  color: #2b1906;
+  background: var(--brass-grad);
+  border: 1px solid #4a3010;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 244, 210, .6), 0 2px 4px rgba(0, 0, 0, .4);
+}
+button:active { transform: translateY(1px); }
+
+/* ---------- Narrow screens ---------- */
+
+@container (max-width: 700px) {
+  .cols { display: none; }
+  .row {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-areas: "gleis info" "gleis status" "clock clock";
+    padding: 14px 12px;
+  }
+  .row .clock { justify-self: center; margin-top: 6px; --tw: clamp(12px, 6.2cqi, 30px); }
+}

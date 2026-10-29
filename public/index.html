@@ -1,11 +1,59 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bahnhof Interdimensional</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Nixie+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hello, World!</h1>
+  <main class="frame">
+    <div class="board">
+      <header class="plate head">
+        <span class="kicker">Hauptbahnhof</span>
+        <h1>Bahnhof Interdimensional</h1>
+        <span class="kicker">Portal-Fahrplan &middot; Abfahrt durch die Pforten</span>
+      </header>
+
+      <section class="finale">
+        <div class="finale-label">Letzte Abfahrt</div>
+        <div class="finale-name" id="final-name">&nbsp;</div>
+        <div class="clock big" id="final-clock"></div>
+        <div class="finale-when" id="final-when">&nbsp;</div>
+      </section>
+
+      <div class="cols" aria-hidden="true">
+        <span>Gleis</span><span>Zug &middot; Ziel</span><span>Zeitmesser</span>
+      </div>
+      <div id="tracks"></div>
+
+      <footer class="plate foot">
+        Fahrgäste werden gebeten, die Portale erst nach Freigabe zu betreten. Für verlorene Zeit wird nicht gehaftet.
+      </footer>
+    </div>
+  </main>
+
+  <dialog id="settings">
+    <form method="dialog" id="settings-form">
+      <h2>Stellwerk</h2>
+      <fieldset>
+        <legend>Letzte Abfahrt</legend>
+        <label>Ereignis <input name="final-name" maxlength="60" required></label>
+        <label>Zeitpunkt <input name="final-at" type="datetime-local" required></label>
+      </fieldset>
+      <div id="track-fields"></div>
+      <label class="pw">Passwort <input name="pw" type="password" autocomplete="current-password" required></label>
+      <p class="msg" id="settings-msg" role="status"></p>
+      <div class="buttons">
+        <button type="button" value="cancel" id="settings-cancel">Abbrechen</button>
+        <button type="submit" value="save">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
 </body>
 </html>
