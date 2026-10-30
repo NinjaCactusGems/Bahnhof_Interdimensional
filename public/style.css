@@ -68,7 +68,6 @@ body {
 
 /* diagnostics overlay (key i); its switches set .no-<name> on <html> */
 .no-steam #steam, .no-pipes #pipes, .no-digits .lit { display: none; }
-.no-gflicker .glitch .cath.on, .no-gflicker .glitch .sep i, .no-twitch .clock.glitch { animation: none; }
 #diag {
   position: fixed;
   top: 12px;
@@ -153,15 +152,16 @@ body {
 }
 
 /* Dark iron signs with neon letters that mostly burn steadily; now and
-   then one stutters off (class .flicker, set from app.js), showing the
-   letters cut into the metal underneath. */
+   then one stutters off (animated from app.js), showing the
+   letters cut into the metal underneath. The sign itself carries the
+   engraved letters; the neon is a copy on its own layer (::after) that only
+   ever changes opacity, so flickering needs no restyle and no repaint. */
 .title, .plaque {
-  --lit-color: color-mix(in srgb, var(--neon) 40%, #fff);
-  --lit-glow: 0 0 .04em #fff, 0 0 .2em var(--neon), 0 0 .7em color-mix(in srgb, var(--neon) 70%, transparent);
   position: relative;
+  isolation: isolate;
   text-transform: uppercase;
-  color: var(--lit-color);
-  text-shadow: var(--lit-glow);
+  color: #0d0d0d;
+  text-shadow: var(--engraved);
   background:
     var(--rivet) 9px 9px / 8px 8px no-repeat,
     var(--rivet) calc(100% - 9px) 9px / 8px 8px no-repeat,
@@ -184,20 +184,16 @@ body {
   border-radius: 2px;
 }
 
-/* own keyframe names: the glitching tubes already use "flicker" */
-.flicker { animation: neon-drop 2.4s steps(1, end); }
-@keyframes neon-drop {
-  0%, 5%, 12%, 46%, 52%, 100% { color: var(--lit-color); text-shadow: var(--lit-glow); }
-  /* off: the dark engraving shows */
-  3%, 9%, 16%, 49% { color: #0d0d0d; text-shadow: var(--engraved); }
+.title::after, .plaque::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--neon) 40%, #fff);
+  text-shadow: 0 0 .04em #fff, 0 0 .2em var(--neon), 0 0 .7em color-mix(in srgb, var(--neon) 70%, transparent);
+  will-change: opacity;
 }
-/* full outage: sputters, goes dark for a while, struggles back on */
-.outage { animation: neon-out 6s steps(1, end); }
-@keyframes neon-out {
-  0%, 4%, 7%, 82%, 85.5%, 88%, 100% { color: var(--lit-color); text-shadow: var(--lit-glow); }
-  2%, 5.5%, 9%, 84%, 87% { color: #0d0d0d; text-shadow: var(--engraved); }
-}
-
 /* ---------- Final event ---------- */
 
 .finale {
@@ -324,6 +320,7 @@ body {
 .title::before, .plaque::before {
   content: "";
   position: absolute;
+  z-index: 1; /* over the neon glow, as the frame was before */
   inset: 0;
   padding: .25em; /* em, so the frame shrinks with the lettering at low resolution */
   border-radius: inherit;
@@ -452,21 +449,7 @@ body {
   width: calc(var(--tw) * .18);
   height: calc(var(--tw) * .18);
   border-radius: 50%;
-  background: var(--core);
-  box-shadow: 0 0 calc(var(--tw) * .25) var(--glow);
-}
-
-/* glitching clocks flicker and twitch */
-.glitch .cath.on, .glitch .sep i { animation: flicker .16s steps(2) infinite; }
-.clock.glitch { animation: twitch .5s steps(1) infinite; }
-@keyframes flicker {
-  0% { opacity: 1; }
-  50% { opacity: .55; }
-}
-@keyframes twitch {
-  0%, 70% { transform: none; }
-  72% { transform: translate(1px, -1px); }
-  86% { transform: translate(-1px, 0) skewX(-1deg); }
+  background: rgba(150, 120, 95, .11); /* unlit; the lit dot is drawn on the canvas */
 }
 
 /* ---------- Secret settings ---------- */

@@ -12,7 +12,8 @@ try { S = Math.min(8, Math.max(1, Number(localStorage.getItem("res-div")) || 1))
    Glass, sockets, mesh and the faint unlit cathodes are static CSS that never
    repaints. Only the lit digits change, and those are copied from cached glow
    sprites onto one canvas per clock: no restyle, no repaint of the tube art,
-   which is what made weak TV hardware choke. */
+   which is what made weak TV hardware choke. The separator dots and the
+   glitch flicker and twitch are drawn there too, for the same reason. */
 
 const DPR = Math.min(devicePixelRatio || 1, 1.5);
 const sprites = new Map(); // "char|w|h|glow|core" -> pre-rendered lit digit
@@ -41,6 +42,23 @@ function glyph(char, w, h, glow, core) {
   const step = (w * 0.06) / Math.cos(Math.PI / 6), run = h * Math.tan(Math.PI / 6);
   for (let x = -run; x < w + run; x += step) { g.moveTo(x, 0); g.lineTo(x + run, h); g.moveTo(x + run, 0); g.lineTo(x, h); }
   g.stroke();
+  sprites.set(key, s);
+  return s;
+}
+
+// lit separator dots of one separator tube; dots: [[x, y, r], ...] in its box
+function dotSprite(w, h, dots, glow, core) {
+  const key = ["dots", w, h, dots.join(";"), glow, core].join("|");
+  let s = sprites.get(key);
+  if (s) return s;
+  s = document.createElement("canvas");
+  s.width = w;
+  s.height = h;
+  const g = s.getContext("2d");
+  g.fillStyle = core;
+  g.shadowColor = glow;
+  g.shadowBlur = w * 0.25;
+  for (const [x, y, r] of dots) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
   sprites.set(key, s);
   return s;
 }
@@ -82,25 +100,35 @@ function clock(el) {
   hours.className = "group";
   let hTubes = [];
   const rest = [digits(), digits(), digits(), digits(), digits(), digits(), digits()];
+  const seps = [bulbs("colon"), bulbs("colon"), bulbs("point")];
   const cv = document.createElement("canvas");
   cv.className = "lit";
-  el.append(sign.el, hours, bulbs("colon"), rest[0].el, rest[1].el, bulbs("colon"),
-    rest[2].el, rest[3].el, bulbs("point"), rest[4].el, rest[5].el, rest[6].el, cv);
+  el.append(sign.el, hours, seps[0], rest[0].el, rest[1].el, seps[1],
+    rest[2].el, rest[3].el, seps[2], rest[4].el, rest[5].el, rest[6].el, cv);
   const ctx = cv.getContext("2d");
 
-  let gen = -1, cells = [], shown = [], state, glow, core, alpha = 1;
+  let gen = -1, cells = [], sepCells = [], shown = [], state, glow, core, alpha = 1, jx = 0, jy = 0;
+  const box = (t) => ({
+    x: Math.round(t.offsetLeft * DPR), y: Math.round(t.offsetTop * DPR),
+    w: Math.round(t.offsetWidth * DPR), h: Math.round(t.offsetHeight * DPR),
+  });
   function layout() {
     gen = layoutGen;
     cv.width = Math.round(el.clientWidth * DPR); // also clears the canvas
     cv.height = Math.round(el.clientHeight * DPR);
-    cells = [...hTubes, ...rest].map(({ el: t }) => ({
-      x: Math.round(t.offsetLeft * DPR), y: Math.round(t.offsetTop * DPR),
-      w: Math.round(t.offsetWidth * DPR), h: Math.round(t.offsetHeight * DPR),
+    cells = [...hTubes, ...rest].map(({ el: t }) => box(t));
+    sepCells = seps.map((t) => ({
+      ...box(t),
+      dots: [...t.children].filter((d) => d.offsetParent).map((d) => [
+        Math.round((d.offsetLeft + d.offsetWidth / 2) * DPR),
+        Math.round((d.offsetTop + d.offsetHeight / 2) * DPR),
+        Math.round(d.offsetWidth * DPR) / 2,
+      ]),
     }));
     shown = [];
   }
 
-  return (ms, st) => {
+  return (ms, st, glitching) => {
     sign.set(ms < 0 ? "−" : null);
     const a = Math.abs(Math.trunc(ms));
     const h = String(Math.floor(a / H)).padStart(2, "0");
@@ -117,19 +145,26 @@ function clock(el) {
       shown = [];
     }
     if (gen !== layoutGen) layout();
-    // glitching clocks flicker; everything else burns steady
-    const al = opt.gflicker && el.classList.contains("glitch") ? 0.55 + Math.random() * 0.45 : 1;
-    if (al !== alpha) { alpha = al; shown = []; }
+    // glitching clocks flicker and every half second twitch; the rest burns steady
+    const al = glitching && opt.gflicker ? 0.55 + Math.random() * 0.45 : 1;
+    const ph = glitching && opt.twitch ? (performance.now() % 500) / 500 : 0;
+    const d = Math.max(1, Math.round(DPR)), x = ph >= 0.86 ? -d : ph >= 0.72 ? d : 0, y = ph >= 0.72 && ph < 0.86 ? -d : 0;
+    if (al !== alpha || x !== jx || y !== jy) {
+      alpha = al; jx = x; jy = y;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      shown = [];
+    }
     const chars = h +
       String(Math.floor(a / 60e3) % 60).padStart(2, "0") +
       String(Math.floor(a / 1e3) % 60).padStart(2, "0") +
       String(a % 1e3).padStart(3, "0");
     ctx.globalAlpha = alpha;
+    if (!shown.length) for (const c of sepCells) ctx.clearRect(c.x, c.y, c.w, c.h), ctx.drawImage(dotSprite(c.w, c.h, c.dots, glow, core), c.x + jx, c.y + jy);
     for (let i = 0; i < cells.length; i++) {
       if (shown[i] === chars[i]) continue;
       const c = cells[i];
       ctx.clearRect(c.x, c.y, c.w, c.h);
-      ctx.drawImage(glyph(chars[i], c.w, c.h, glow, core), c.x, c.y);
+      ctx.drawImage(glyph(chars[i], c.w, c.h, glow, core), c.x + jx, c.y + jy);
       shown[i] = chars[i];
     }
   };
@@ -164,6 +199,13 @@ function episode(now, remaining) {
     const x1 = far(), x2 = Math.random() < 0.5 ? far() : x1;
     k = [[0, 0], [0.001, x1], [0.4, x1], [0.401, x2], [0.75, x2], [0.751, 0], [1, 0]];
   }
+  // The clock must keep its number of hour tubes: one more or less means
+  // relayout, new pipes and a full repaint, which stalls weak TVs badly.
+  const r = remaining, a = Math.abs(r), hd = Math.max(2, String(Math.floor(a / H)).length);
+  const lo = hd > 2 ? 10 ** (hd - 1) * H : 0, hi = 10 ** hd * H - 1, m = 1e3;
+  // display = r - t + offset over t in [0, D]; keep |display| within [lo, hi]
+  const [min, max] = r > 0 ? [lo - r + D + m, hi - r - m] : [D - r - hi + m, -r - lo - m];
+  k = k.map(([p, v], i) => [p, i && i < k.length - 1 ? Math.min(max, Math.max(min, v)) : v]);
   return { start: now, end: now + D, k };
 }
 
@@ -181,14 +223,13 @@ function offsetAt(ep, now) {
 
 // Keep 1 counter glitching at all times, occasionally 2–3 (≈1.2 on average).
 function scheduleGlitches(counters, now, dt) {
-  for (const c of counters) if (c.ep && now >= c.ep.end) { c.ep = null; c.el.classList.remove("glitch"); }
+  for (const c of counters) if (c.ep && now >= c.ep.end) c.ep = null;
   const active = counters.filter((c) => c.ep).length;
   if (active >= 3 || (active > 0 && Math.random() > dt * 0.00004)) return;
   const pool = counters.filter((c) => !c.ep && Math.abs(c.remaining) > QUIET_ZONE + MAX_EP);
   if (!pool.length) return;
   const c = pool[Math.floor(Math.random() * pool.length)];
   c.ep = episode(now, c.remaining);
-  c.el.classList.add("glitch");
 }
 
 /* ---------- Timetable ---------- */
@@ -218,7 +259,7 @@ function render() {
     row.className = "row";
     row.style.setProperty("--portal", PORTAL[i]);
     row.innerHTML = `
-      <div class="head"><div class="plaque">Gleis ${i + 1}</div></div>
+      <div class="head"><div class="plaque" data-text="Gleis ${i + 1}">Gleis ${i + 1}</div></div>
       <div class="clock"></div>`;
     if (t.note) {
       const note = document.createElement("div");
@@ -476,20 +517,29 @@ function steam(dt) {
 }
 
 /* ---------- Neon signs ----------
-   The signs burn steadily; every few seconds one stutters (.flicker) or,
-   about a third of the time, drops out completely for a while (.outage).
-   A random duration stretches each pattern so no two dropouts match. */
+   The signs burn steadily; every few seconds one stutters or, about a third
+   of the time, drops out completely for a while. A random duration stretches
+   each pattern so no two dropouts match. Only the opacity of the neon layer
+   (::after) is animated, from script so no class changes and nothing repaints. */
+
+// [fraction, lit] steps: a stutter, and a full outage that struggles back on
+const STUTTER = [[0, 1], [0.03, 0], [0.05, 1], [0.09, 0], [0.12, 1], [0.16, 0], [0.46, 1], [0.49, 0], [0.52, 1]];
+const OUTAGE = [[0, 1], [0.02, 0], [0.04, 1], [0.055, 0], [0.07, 1], [0.09, 0], [0.82, 1], [0.84, 0], [0.855, 1], [0.87, 0], [0.88, 1]];
+const neonOut = new Set();
 
 function neonSigns(dt) {
   if (Math.random() > dt / 3000) return;
-  const signs = [...document.querySelectorAll(".title, .plaque")]
-    .filter((el) => !el.classList.contains("flicker") && !el.classList.contains("outage"));
+  const signs = [...document.querySelectorAll(".title, .plaque")].filter((el) => !neonOut.has(el));
   const el = signs[Math.floor(Math.random() * signs.length)];
   if (!el) return;
   const out = Math.random() < 0.35;
-  el.style.animationDuration = (out ? rand(4, 10) : rand(1.2, 4)) + "s";
-  el.classList.add(out ? "outage" : "flicker");
-  el.addEventListener("animationend", () => el.classList.remove("flicker", "outage"), { once: true });
+  const frames = (out ? OUTAGE : STUTTER).map(([offset, opacity]) => ({ offset, opacity, easing: "steps(1, end)" }));
+  const anim = el.animate([...frames, { offset: 1, opacity: 1 }], {
+    duration: (out ? rand(4, 10) : rand(1.2, 4)) * 1e3,
+    pseudoElement: "::after",
+  });
+  neonOut.add(el);
+  anim.finished.catch(() => {}).then(() => neonOut.delete(el));
 }
 
 let last = performance.now();
@@ -508,7 +558,7 @@ function frame() {
       c.remaining = s.target - now;
       const tgt = c.row ?? c.el;
       if (c.cls !== s.cls) { tgt.classList.remove("st-" + c.cls); tgt.classList.add("st-" + s.cls); c.cls = s.cls; }
-      if (opt.digits) c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls);
+      if (opt.digits) c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls, !!c.ep);
     }
   }
   stats.frames++;
@@ -688,9 +738,9 @@ function gpuInfo() {
 function applyOpts() {
   const cl = document.documentElement.classList;
   for (const [name] of Object.values(TOGGLES)) cl.toggle("no-" + name, !opt[name]);
-  if (!opt.glitch) for (const c of counters) { c.ep = null; c.el.classList.remove("glitch"); }
+  if (!opt.glitch) for (const c of counters) c.ep = null;
   if (!opt.neon) {
-    document.querySelectorAll(".flicker, .outage").forEach((el) => el.classList.remove("flicker", "outage"));
+    for (const el of neonOut) el.getAnimations({ subtree: true }).forEach((an) => an.cancel());
   }
 }
 
