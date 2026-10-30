@@ -107,7 +107,7 @@ function clock(el) {
     rest[2].el, rest[3].el, seps[2], rest[4].el, rest[5].el, rest[6].el, cv);
   const ctx = cv.getContext("2d");
 
-  let gen = -1, cells = [], sepCells = [], shown = [], state, glow, core, alpha = 1, jx = 0, jy = 0;
+  let gen = -1, cells = [], sepCells = [], allCells = [], shown = [], state, glow, core, alpha = 1, jx = 0, jy = 0;
   const box = (t) => ({
     x: Math.round(t.offsetLeft * DPR), y: Math.round(t.offsetTop * DPR),
     w: Math.round(t.offsetWidth * DPR), h: Math.round(t.offsetHeight * DPR),
@@ -117,6 +117,7 @@ function clock(el) {
     cv.width = Math.round(el.clientWidth * DPR); // also clears the canvas
     cv.height = Math.round(el.clientHeight * DPR);
     cells = [...hTubes, ...rest].map(({ el: t }) => box(t));
+    allCells = [...el.querySelectorAll(".tube")].map(box);
     sepCells = seps.map((t) => ({
       ...box(t),
       dots: [...t.children].filter((d) => d.offsetParent).map((d) => [
@@ -128,15 +129,19 @@ function clock(el) {
     shown = [];
   }
 
-  return (ms, st, glitching) => {
-    sign.set(ms < 0 ? "−" : null);
+  // word: spelled across all tubes instead of a time, one letter each, centred
+  let spelled = null;
+  return (ms, st, glitching, word = null) => {
+    sign.set(!word && ms < 0 ? "−" : null);
     const a = Math.abs(Math.trunc(ms));
-    const h = String(Math.floor(a / H)).padStart(2, "0");
-    if (hTubes.length !== h.length) {
-      while (hTubes.length < h.length) { const t = digits(); hours.prepend(t.el); hTubes.unshift(t); }
-      while (hTubes.length > h.length) hTubes.shift().el.remove();
+    const h = word ? "" : String(Math.floor(a / H)).padStart(2, "0");
+    const nh = word ? 2 : h.length;
+    if (hTubes.length !== nh) {
+      while (hTubes.length < nh) { const t = digits(); hours.prepend(t.el); hTubes.unshift(t); }
+      while (hTubes.length > nh) hTubes.shift().el.remove();
       gen = -1;
     }
+    if (word !== spelled) { spelled = word; ctx.clearRect(0, 0, cv.width, cv.height); shown = []; }
     if (st !== state) {
       state = st;
       const cs = getComputedStyle(el);
@@ -153,6 +158,18 @@ function clock(el) {
       alpha = al; jx = x; jy = y;
       ctx.clearRect(0, 0, cv.width, cv.height);
       shown = [];
+    }
+    if (word) {
+      if (shown.length) return;
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      const pad = Math.floor((allCells.length - word.length) / 2);
+      [...word].forEach((ch, i) => {
+        const c = allCells[pad + i];
+        if (c) ctx.drawImage(glyph(ch, c.w, c.h, glow, core), c.x, c.y);
+      });
+      shown = [word];
+      return;
     }
     const chars = h +
       String(Math.floor(a / 60e3) % 60).padStart(2, "0") +
@@ -226,7 +243,7 @@ function scheduleGlitches(counters, now, dt) {
   for (const c of counters) if (c.ep && now >= c.ep.end) c.ep = null;
   const active = counters.filter((c) => c.ep).length;
   if (active >= 3 || (active > 0 && Math.random() > dt * 0.00004)) return;
-  const pool = counters.filter((c) => !c.ep && Math.abs(c.remaining) > QUIET_ZONE + MAX_EP);
+  const pool = counters.filter((c) => !c.ep && !c.done && Math.abs(c.remaining) > QUIET_ZONE + MAX_EP);
   if (!pool.length) return;
   const c = pool[Math.floor(Math.random() * pool.length)];
   c.ep = episode(now, c.remaining);
@@ -238,7 +255,7 @@ function trackState(t, now) {
   const open = Date.parse(t.open), close = Date.parse(t.close);
   if (now < open) return { target: open, cls: open - now > H ? "green" : "orange" };
   if (now < close) return { target: close, cls: "red" };
-  return { target: close, cls: "green" }; // closed: counts on into negative
+  return { target: close, cls: "green", done: true }; // closed
 }
 
 let data = null;
@@ -246,7 +263,10 @@ let counters = [];
 const final = {
   el: $("#final-clock"),
   set: clock($("#final-clock")),
-  state: () => ({ target: Date.parse(data.final.at), cls: "amber" }),
+  state: (now) => {
+    const target = Date.parse(data.final.at);
+    return { target, cls: "amber", done: now >= target };
+  },
 };
 
 function render() {
@@ -558,7 +578,8 @@ function frame() {
       c.remaining = s.target - now;
       const tgt = c.row ?? c.el;
       if (c.cls !== s.cls) { tgt.classList.remove("st-" + c.cls); tgt.classList.add("st-" + s.cls); c.cls = s.cls; }
-      if (opt.digits) c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls, !!c.ep);
+      c.done = s.done;
+      if (opt.digits) c.set(c.remaining + (c.ep ? offsetAt(c.ep, now) : 0), c.cls, !!c.ep, c.done ? "VERGANGEN" : null);
     }
   }
   stats.frames++;
