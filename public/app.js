@@ -118,7 +118,7 @@ function clock(el) {
     }
     if (gen !== layoutGen) layout();
     // glitching clocks flicker; everything else burns steady
-    const al = el.classList.contains("glitch") ? 0.55 + Math.random() * 0.45 : 1;
+    const al = opt.gflicker && el.classList.contains("glitch") ? 0.55 + Math.random() * 0.45 : 1;
     if (al !== alpha) { alpha = al; shown = []; }
     const chars = h +
       String(Math.floor(a / 60e3) % 60).padStart(2, "0") +
@@ -500,9 +500,9 @@ function frame() {
   if (t - last < 30) return requestAnimationFrame(frame);
   const now = Date.now();
   if (opt.steam) steam(t - last);
-  if (opt.fx) neonSigns(t - last);
+  if (opt.neon) neonSigns(t - last);
   if (data) {
-    if (opt.fx) scheduleGlitches(counters, now, t - last);
+    if (opt.glitch) scheduleGlitches(counters, now, t - last);
     for (const c of counters) {
       const s = c.state(now);
       c.remaining = s.target - now;
@@ -652,17 +652,23 @@ function toggleFullscreen() {
 
 /* ---------- Diagnostics (i) ----------
    Frame rate, time spent in our own JS, screen and GPU info, plus switches
-   (1-4, only while shown) to turn the expensive layers off one at a time.
+   (1-7, only while shown) to turn the expensive layers off one at a time.
    Low frame rate with little JS time means the browser's rendering and
    compositing is the bottleneck, not this script. Switches are remembered. */
 
-const opt = { steam: true, pipes: true, digits: true, fx: true };
-try { Object.assign(opt, JSON.parse(localStorage.getItem("diag-opt"))); } catch { /* storage blocked */ }
+const opt = { steam: true, pipes: true, digits: true, glitch: true, gflicker: true, twitch: true, neon: true };
+try {
+  const saved = JSON.parse(localStorage.getItem("diag-opt"));
+  for (const k in opt) if (typeof saved?.[k] === "boolean") opt[k] = saved[k];
+} catch { /* storage blocked */ }
 const TOGGLES = {
   1: ["steam", "Dampf"],
   2: ["pipes", "Rohre"],
   3: ["digits", "Ziffern (Leuchtziffern-Canvas)"],
-  4: ["fx", "Effekte (Glitches, Neon-Flackern)"],
+  4: ["glitch", "Glitches (Zeitsprünge der Zähler)"],
+  5: ["gflicker", "Glitch-Flackern (Ziffern und Punkte)"],
+  6: ["twitch", "Glitch-Zucken (Uhr wackelt)"],
+  7: ["neon", "Neon-Flackern (Schilder)"],
 };
 const stats = { raf: 0, frames: 0, js: 0, gap: 0, shown: null };
 const diagEl = $("#diag");
@@ -681,11 +687,9 @@ function gpuInfo() {
 
 function applyOpts() {
   const cl = document.documentElement.classList;
-  cl.toggle("no-steam", !opt.steam);
-  cl.toggle("no-pipes", !opt.pipes);
-  cl.toggle("no-digits", !opt.digits);
-  if (!opt.fx) {
-    for (const c of counters) { c.ep = null; c.el.classList.remove("glitch"); }
+  for (const [name] of Object.values(TOGGLES)) cl.toggle("no-" + name, !opt[name]);
+  if (!opt.glitch) for (const c of counters) { c.ep = null; c.el.classList.remove("glitch"); }
+  if (!opt.neon) {
     document.querySelectorAll(".flicker, .outage").forEach((el) => el.classList.remove("flicker", "outage"));
   }
 }
@@ -727,7 +731,7 @@ function showDiag() {
     </table>
     <h3>Tasten</h3>
     <table class="keys">${keys.map(([k, v]) => `<tr><th><kbd>${k}</kbd></th><td>${v}</td></tr>`).join("")}</table>
-    <p>1–4 nur bei eingeblendeter Diagnose; Schalter bleiben gespeichert.</p>`;
+    <p>1–7 nur bei eingeblendeter Diagnose; Schalter bleiben gespeichert.</p>`;
   diagEl.querySelector("tr:nth-child(6) td").textContent = gpu; // driver string: text, not markup
 }
 
