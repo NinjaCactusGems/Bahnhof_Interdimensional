@@ -66,8 +66,9 @@ body {
   border-radius: 4px;
 }
 
-/* diagnostics overlay (key i); switches 1-3 hide layers outright */
+/* diagnostics overlay (key i); its switches set .no-<name> on <html> */
 .no-steam #steam, .no-pipes #pipes, .no-digits .lit { display: none; }
+.no-gflicker .glitch .cath.on, .no-gflicker .glitch .sep i, .no-twitch .clock.glitch { animation: none; }
 #diag {
   position: fixed;
   top: 12px;
